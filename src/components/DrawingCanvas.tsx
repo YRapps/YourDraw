@@ -1,12 +1,11 @@
-
 import React, { useEffect, useRef, useState } from "react";
-import { fabric } from "fabric";
+import { Canvas as FabricCanvas, Circle, Rect, Triangle, Polygon, IText, Path } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { 
-  Circle, 
+  Circle as CircleIcon, 
   Square, 
-  Triangle, 
+  Triangle as TriangleIcon, 
   Hexagon, 
   Brush, 
   Eraser, 
@@ -38,7 +37,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Fonts available in the app
 const AVAILABLE_FONTS = [
   { name: "Arial", family: "Arial, sans-serif", style: "normal" },
   { name: "Comfortaa", family: "Comfortaa, cursive", style: "normal" },
@@ -51,7 +49,6 @@ const AVAILABLE_FONTS = [
   { name: "Marck Script", family: "Marck Script, cursive", style: "normal" }
 ];
 
-// Tool types
 type Tool = 
   | "select" 
   | "brush" 
@@ -63,12 +60,11 @@ type Tool =
   | "text"
   | "fill";
 
-// Menu types
 type Menu = "tools" | "view" | "objects";
 
 const DrawingCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
+  const [canvas, setCanvas] = useState<FabricCanvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -83,22 +79,19 @@ const DrawingCanvas: React.FC = () => {
   const [polygonSidesDialogOpen, setPolygonSidesDialogOpen] = useState(false);
   const [polygonSides, setPolygonSides] = useState(5);
   const [textInput, setTextInput] = useState("");
-  const [objects, setObjects] = useState<fabric.Object[]>([]);
+  const [objects, setObjects] = useState<any[]>([]);
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const { toast } = useToast();
 
-  // Initialize canvas
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Calculate canvas dimensions (80% of viewport height, maintaining aspect ratio)
     const viewportHeight = window.innerHeight;
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    // Create fabric.js canvas
-    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+    const fabricCanvas = new FabricCanvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'transparent',
@@ -106,10 +99,8 @@ const DrawingCanvas: React.FC = () => {
       selection: true,
     });
 
-    // Set the canvas
     setCanvas(fabricCanvas);
 
-    // Add event listeners
     fabricCanvas.on('object:added', saveCanvasState);
     fabricCanvas.on('object:modified', saveCanvasState);
     fabricCanvas.on('object:removed', saveCanvasState);
@@ -117,30 +108,24 @@ const DrawingCanvas: React.FC = () => {
     fabricCanvas.on('selection:updated', handleSelectionCreated);
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
     
-    // Create initial history state
     saveCanvasState();
 
-    // Cleanup
     return () => {
       fabricCanvas.dispose();
     };
   }, []);
 
-  // Update objects array when selection changes
   useEffect(() => {
     if (!canvas) return;
     setObjects(canvas.getObjects());
   }, [canvas, canvasHistory]);
 
-  // Set up brush based on active tool
   useEffect(() => {
     if (!canvas) return;
 
-    // Set default tool settings
     canvas.isDrawingMode = activeTool === "brush" || activeTool === "eraser";
     canvas.selection = activeTool === "select";
 
-    // Configure the brush
     if (activeTool === "brush") {
       canvas.freeDrawingBrush.color = strokeColor;
       canvas.freeDrawingBrush.width = brushSize;
@@ -148,50 +133,39 @@ const DrawingCanvas: React.FC = () => {
       canvas.freeDrawingBrush.color = 'transparent';
       canvas.freeDrawingBrush.width = brushSize * 2;
     }
-
   }, [activeTool, strokeColor, brushSize, canvas]);
 
-  // Save canvas state to history
   const saveCanvasState = () => {
     if (!canvas) return;
     
-    // Get the current canvas state as JSON
     const currentState = JSON.stringify(canvas.toJSON(['id']));
     
-    // If we're not at the end of the history, remove future states
     if (historyIndex < canvasHistory.length - 1) {
       setCanvasHistory(prev => prev.slice(0, historyIndex + 1));
     }
     
-    // Add current state to history
     setCanvasHistory(prev => [...prev, currentState]);
     setHistoryIndex(prev => prev + 1);
 
-    // Update objects list
     setObjects(canvas.getObjects());
   };
 
-  // Handle undo
   const handleUndo = () => {
     if (!canvas || historyIndex <= 0) return;
     
-    // Go back one step in history
     const newIndex = historyIndex - 1;
     setHistoryIndex(newIndex);
     
-    // Load the previous state
     canvas.loadFromJSON(canvasHistory[newIndex], () => {
       canvas.renderAll();
       setObjects(canvas.getObjects());
     });
   };
 
-  // Handle selection created
   const handleSelectionCreated = (e: any) => {
     const selectedObject = e.selected?.[0] || canvas?.getActiveObject();
     if (!selectedObject) return;
 
-    // Update UI controls based on selected object
     if (selectedObject.type === 'rect') {
       setCornerRadius(selectedObject.rx || 0);
     }
@@ -213,9 +187,7 @@ const DrawingCanvas: React.FC = () => {
     }
   };
 
-  // Handle selection cleared
   const handleSelectionCleared = () => {
-    // Reset UI controls to default
     setFillColor('rgba(0, 0, 0, 0)');
     setStrokeColor('#000000');
     setOpacity(100);
@@ -225,15 +197,14 @@ const DrawingCanvas: React.FC = () => {
     setFontStyle('normal');
   };
 
-  // Add shape to canvas
   const addShape = (shape: string) => {
     if (!canvas) return;
 
-    let object: fabric.Object;
+    let object: any;
 
     switch (shape) {
       case 'circle':
-        object = new fabric.Circle({
+        object = new Circle({
           radius: 50,
           left: canvas.width! / 2 - 50,
           top: canvas.height! / 2 - 50,
@@ -244,7 +215,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'square':
-        object = new fabric.Rect({
+        object = new Rect({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -258,7 +229,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'triangle':
-        object = new fabric.Triangle({
+        object = new Triangle({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -281,7 +252,7 @@ const DrawingCanvas: React.FC = () => {
           points.push({ x, y });
         }
         
-        object = new fabric.Polygon(points, {
+        object = new Polygon(points, {
           left: canvas.width! / 2 - radius,
           top: canvas.height! / 2 - radius,
           fill: fillColor,
@@ -300,11 +271,10 @@ const DrawingCanvas: React.FC = () => {
     setActiveTool('select');
   };
 
-  // Add text to canvas
   const addText = () => {
     if (!canvas || !textInput) return;
 
-    const textObject = new fabric.Textbox(textInput, {
+    const textObject = new IText(textInput, {
       left: canvas.width! / 2 - 100,
       top: canvas.height! / 2 - 20,
       width: 200,
@@ -325,7 +295,6 @@ const DrawingCanvas: React.FC = () => {
     setActiveTool('select');
   };
 
-  // Handle tool click
   const handleToolClick = (tool: Tool) => {
     if (tool === 'polygon') {
       setPolygonSidesDialogOpen(true);
@@ -344,7 +313,6 @@ const DrawingCanvas: React.FC = () => {
         canvas.renderAll();
         saveCanvasState();
       } else {
-        // Fill the background
         canvas.backgroundColor = fillColor;
         canvas.renderAll();
         saveCanvasState();
@@ -360,7 +328,6 @@ const DrawingCanvas: React.FC = () => {
     setActiveTool(tool);
   };
 
-  // Apply changes to selected object
   const applyChangesToSelectedObject = () => {
     if (!canvas) return;
     
@@ -393,7 +360,6 @@ const DrawingCanvas: React.FC = () => {
     saveCanvasState();
   };
 
-  // Update text
   const updateText = () => {
     if (!canvas) return;
     
@@ -404,18 +370,15 @@ const DrawingCanvas: React.FC = () => {
     setTextDialogOpen(true);
   };
 
-  // Save canvas as PNG
   const saveAsPNG = () => {
     if (!canvas) return;
     
-    // Convert canvas to dataURL
     const dataURL = canvas.toDataURL({
       format: 'png',
       quality: 1,
       multiplier: 2,
     });
     
-    // Create a download link
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
@@ -429,7 +392,6 @@ const DrawingCanvas: React.FC = () => {
     });
   };
 
-  // Bring selected object to front
   const bringToFront = () => {
     if (!canvas) return;
     
@@ -441,7 +403,6 @@ const DrawingCanvas: React.FC = () => {
     saveCanvasState();
   };
 
-  // Send selected object to back
   const sendToBack = () => {
     if (!canvas) return;
     
@@ -453,7 +414,6 @@ const DrawingCanvas: React.FC = () => {
     saveCanvasState();
   };
 
-  // Delete selected object
   const deleteObject = (obj?: fabric.Object) => {
     if (!canvas) return;
     
@@ -465,20 +425,18 @@ const DrawingCanvas: React.FC = () => {
     saveCanvasState();
   };
 
-  // Tool buttons
   const toolButtons = [
     { tool: "select", icon: <MousePointer size={20} />, label: "Выделение" },
     { tool: "brush", icon: <Brush size={20} />, label: "Кисть" },
     { tool: "eraser", icon: <Eraser size={20} />, label: "Ластик" },
-    { tool: "circle", icon: <Circle size={20} />, label: "Круг" },
+    { tool: "circle", icon: <CircleIcon size={20} />, label: "Круг" },
     { tool: "square", icon: <Square size={20} />, label: "Квадрат" },
-    { tool: "triangle", icon: <Triangle size={20} />, label: "Треугольник" },
+    { tool: "triangle", icon: <TriangleIcon size={20} />, label: "Треугольник" },
     { tool: "polygon", icon: <Hexagon size={20} />, label: "Многоугольник" },
     { tool: "text", icon: <Text size={20} />, label: "Текст" },
     { tool: "fill", icon: <PaintBucket size={20} />, label: "Заливка" },
   ];
 
-  // Color swatches
   const colorSwatches = [
     "#000000", "#ffffff", "#ff0000", "#00ff00", "#0000ff", 
     "#ffff00", "#00ffff", "#ff00ff", "#ff9900", "#9900ff"
@@ -486,12 +444,10 @@ const DrawingCanvas: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4">
-      {/* Canvas Container */}
       <div className="canvas-container bg-white bg-opacity-80 rounded-2xl shadow-xl mb-20 overflow-hidden">
         <canvas ref={canvasRef} className="canvas" />
       </div>
 
-      {/* Top Action Bar */}
       <div className="fixed top-4 left-4 right-4 flex justify-between items-center">
         <Button 
           variant="outline"
@@ -510,9 +466,7 @@ const DrawingCanvas: React.FC = () => {
         </Button>
       </div>
 
-      {/* Menu Container */}
       <div className="menu-container z-10">
-        {/* Menu Tabs */}
         <div className="flex justify-around mb-4">
           <button
             className={cn("menu-tab", activeMenu === "tools" && "active")}
@@ -534,7 +488,6 @@ const DrawingCanvas: React.FC = () => {
           </button>
         </div>
 
-        {/* Tools Menu */}
         {activeMenu === "tools" && (
           <div className="grid grid-cols-5 gap-4 justify-items-center">
             {toolButtons.map((btn) => (
@@ -550,55 +503,50 @@ const DrawingCanvas: React.FC = () => {
           </div>
         )}
 
-        {/* View Menu */}
         {activeMenu === "view" && (
           <div className="space-y-4">
-            {/* Color Selection */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Цвет кисти:</span>
-                <div className="flex space-x-2">
-                  {colorSwatches.slice(0, 5).map((color) => (
-                    <div
-                      key={color}
-                      className={cn("color-swatch", strokeColor === color && "active")}
-                      style={{ backgroundColor: color, borderColor: color === "#ffffff" ? "#ddd" : color }}
-                      onClick={() => setStrokeColor(color)}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end space-x-2">
-                {colorSwatches.slice(5).map((color) => (
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Цвет кисти:</span>
+              <div className="flex space-x-2">
+                {colorSwatches.slice(0, 5).map((color) => (
                   <div
                     key={color}
                     className={cn("color-swatch", strokeColor === color && "active")}
-                    style={{ backgroundColor: color }}
+                    style={{ backgroundColor: color, borderColor: color === "#ffffff" ? "#ddd" : color }}
                     onClick={() => setStrokeColor(color)}
                   />
                 ))}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <div className="color-swatch relative" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
-                      <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">+</span>
-                    </div>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-64">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Выберите цвет:</label>
-                      <Input 
-                        type="color" 
-                        value={strokeColor} 
-                        onChange={(e) => setStrokeColor(e.target.value)} 
-                        className="w-full h-10"
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
             </div>
+            <div className="flex justify-end space-x-2">
+              {colorSwatches.slice(5).map((color) => (
+                <div
+                  key={color}
+                  className={cn("color-swatch", strokeColor === color && "active")}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setStrokeColor(color)}
+                />
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="color-swatch relative" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
+                    <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">+</span>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Выберите цвет:</label>
+                    <Input 
+                      type="color" 
+                      value={strokeColor} 
+                      onChange={(e) => setStrokeColor(e.target.value)} 
+                      className="w-full h-10"
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
 
-            {/* Fill Color */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Цвет заливки:</span>
@@ -652,7 +600,6 @@ const DrawingCanvas: React.FC = () => {
               </div>
             </div>
 
-            {/* Opacity Slider */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Непрозрачность:</span>
@@ -666,7 +613,6 @@ const DrawingCanvas: React.FC = () => {
               />
             </div>
 
-            {/* Brush Size Slider */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Размер кисти:</span>
@@ -681,7 +627,6 @@ const DrawingCanvas: React.FC = () => {
               />
             </div>
 
-            {/* Corner Radius Slider (for rectangles) */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Углы фигуры:</span>
@@ -696,7 +641,6 @@ const DrawingCanvas: React.FC = () => {
               />
             </div>
 
-            {/* Text Options */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Шрифт:</span>
@@ -733,7 +677,6 @@ const DrawingCanvas: React.FC = () => {
                 step={1}
               />
 
-              {/* Font Style Buttons (for Sans Serif) */}
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Стиль шрифта:</span>
                 <div className="flex space-x-2">
@@ -765,7 +708,6 @@ const DrawingCanvas: React.FC = () => {
               </div>
             </div>
 
-            {/* Apply Changes Button */}
             <div className="flex justify-center">
               <Button 
                 variant="default" 
@@ -776,7 +718,6 @@ const DrawingCanvas: React.FC = () => {
               </Button>
             </div>
 
-            {/* Edit Text Button (only shown when text is selected) */}
             <div className="flex justify-center">
               <Button 
                 variant="outline" 
@@ -789,7 +730,6 @@ const DrawingCanvas: React.FC = () => {
           </div>
         )}
 
-        {/* Objects Menu */}
         {activeMenu === "objects" && (
           <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
             <div className="flex justify-between items-center mb-2">
@@ -886,7 +826,6 @@ const DrawingCanvas: React.FC = () => {
         )}
       </div>
 
-      {/* Text Input Dialog */}
       <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -976,7 +915,6 @@ const DrawingCanvas: React.FC = () => {
               </TabsContent>
             </Tabs>
             
-            {/* Preview */}
             <div className="border p-4 rounded-md text-center overflow-hidden" style={{ 
               fontFamily, 
               fontSize: `${fontSize}px`,
@@ -1006,7 +944,6 @@ const DrawingCanvas: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Polygon Sides Dialog */}
       <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1028,7 +965,6 @@ const DrawingCanvas: React.FC = () => {
               />
             </div>
             
-            {/* Preview */}
             <div className="border p-4 rounded-md flex justify-center">
               <svg width="100" height="100" viewBox="-50 -50 100 100">
                 {Array.from({ length: polygonSides }).map((_, i) => {
