@@ -1,5 +1,6 @@
+
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas as FabricCanvas, Circle, Rect, Triangle, Polygon, IText, Path } from "fabric";
+import { Canvas, IText } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { 
@@ -64,7 +65,7 @@ type Menu = "tools" | "view" | "objects";
 
 const DrawingCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvas, setCanvas] = useState<FabricCanvas | null>(null);
+  const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -91,7 +92,7 @@ const DrawingCanvas: React.FC = () => {
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new FabricCanvas(canvasRef.current, {
+    const fabricCanvas = new Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'transparent',
@@ -101,9 +102,9 @@ const DrawingCanvas: React.FC = () => {
 
     setCanvas(fabricCanvas);
 
-    fabricCanvas.on('object:added', saveCanvasState);
-    fabricCanvas.on('object:modified', saveCanvasState);
-    fabricCanvas.on('object:removed', saveCanvasState);
+    fabricCanvas.on('object:added', () => saveCanvasState());
+    fabricCanvas.on('object:modified', () => saveCanvasState());
+    fabricCanvas.on('object:removed', () => saveCanvasState());
     fabricCanvas.on('selection:created', handleSelectionCreated);
     fabricCanvas.on('selection:updated', handleSelectionCreated);
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
@@ -130,15 +131,19 @@ const DrawingCanvas: React.FC = () => {
       canvas.freeDrawingBrush.color = strokeColor;
       canvas.freeDrawingBrush.width = brushSize;
     } else if (activeTool === "eraser") {
-      canvas.freeDrawingBrush.color = 'transparent';
+      // Use a composite operation that simulates erasing
+      canvas.freeDrawingBrush.color = "#ffffff";
       canvas.freeDrawingBrush.width = brushSize * 2;
+      if (canvas.freeDrawingBrush.globalCompositeOperation) {
+        canvas.freeDrawingBrush.globalCompositeOperation = "destination-out";
+      }
     }
   }, [activeTool, strokeColor, brushSize, canvas]);
 
   const saveCanvasState = () => {
     if (!canvas) return;
     
-    const currentState = JSON.stringify(canvas.toJSON(['id']));
+    const currentState = JSON.stringify(canvas.toJSON());
     
     if (historyIndex < canvasHistory.length - 1) {
       setCanvasHistory(prev => prev.slice(0, historyIndex + 1));
@@ -174,7 +179,7 @@ const DrawingCanvas: React.FC = () => {
     setFillColor(selectedObject.fill || 'transparent');
     setStrokeColor(selectedObject.stroke || '#000000');
     
-    if (selectedObject.type === 'textbox') {
+    if (selectedObject.type === 'textbox' || selectedObject.type === 'i-text') {
       setFontFamily(selectedObject.fontFamily || 'Arial, sans-serif');
       setFontSize(selectedObject.fontSize || 24);
       setFontStyle(
@@ -204,7 +209,7 @@ const DrawingCanvas: React.FC = () => {
 
     switch (shape) {
       case 'circle':
-        object = new Circle({
+        object = new fabric.Circle({
           radius: 50,
           left: canvas.width! / 2 - 50,
           top: canvas.height! / 2 - 50,
@@ -215,7 +220,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'square':
-        object = new Rect({
+        object = new fabric.Rect({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -229,7 +234,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'triangle':
-        object = new Triangle({
+        object = new fabric.Triangle({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -252,7 +257,7 @@ const DrawingCanvas: React.FC = () => {
           points.push({ x, y });
         }
         
-        object = new Polygon(points, {
+        object = new fabric.Polygon(points, {
           left: canvas.width! / 2 - radius,
           top: canvas.height! / 2 - radius,
           fill: fillColor,
@@ -274,7 +279,7 @@ const DrawingCanvas: React.FC = () => {
   const addText = () => {
     if (!canvas || !textInput) return;
 
-    const textObject = new IText(textInput, {
+    const textObject = new fabric.IText(textInput, {
       left: canvas.width! / 2 - 100,
       top: canvas.height! / 2 - 20,
       width: 200,
@@ -341,14 +346,14 @@ const DrawingCanvas: React.FC = () => {
     });
     
     if (activeObject.type === 'rect') {
-      (activeObject as fabric.Rect).set({
+      activeObject.set({
         rx: cornerRadius,
         ry: cornerRadius,
       });
     }
     
-    if (activeObject.type === 'textbox') {
-      (activeObject as fabric.Textbox).set({
+    if (activeObject.type === 'textbox' || activeObject.type === 'i-text') {
+      activeObject.set({
         fontSize: fontSize,
         fontFamily: fontFamily,
         fontStyle: fontStyle === 'italic' ? 'italic' : 'normal',
@@ -364,10 +369,23 @@ const DrawingCanvas: React.FC = () => {
     if (!canvas) return;
     
     const activeObject = canvas.getActiveObject();
-    if (!activeObject || activeObject.type !== 'textbox') return;
+    if (!activeObject || (activeObject.type !== 'textbox' && activeObject.type !== 'i-text')) return;
     
-    setTextInput((activeObject as fabric.Textbox).text || '');
+    setTextInput(activeObject.text || '');
     setTextDialogOpen(true);
+
+    // After editing, update the text
+    if (textInput) {
+      activeObject.set({
+        text: textInput,
+        fontSize: fontSize,
+        fontFamily: fontFamily,
+        fontStyle: fontStyle === 'italic' ? 'italic' : 'normal',
+        fontWeight: fontStyle === 'bold' ? 'bold' : 'normal',
+      });
+      canvas.renderAll();
+      saveCanvasState();
+    }
   };
 
   const saveAsPNG = () => {
@@ -398,7 +416,7 @@ const DrawingCanvas: React.FC = () => {
     const activeObject = canvas.getActiveObject();
     if (!activeObject) return;
     
-    canvas.bringToFront(activeObject);
+    activeObject.bringToFront();
     canvas.renderAll();
     saveCanvasState();
   };
@@ -409,12 +427,12 @@ const DrawingCanvas: React.FC = () => {
     const activeObject = canvas.getActiveObject();
     if (!activeObject) return;
     
-    canvas.sendToBack(activeObject);
+    activeObject.sendToBack();
     canvas.renderAll();
     saveCanvasState();
   };
 
-  const deleteObject = (obj?: fabric.Object) => {
+  const deleteObject = (obj?: any) => {
     if (!canvas) return;
     
     const objectToDelete = obj || canvas.getActiveObject();
