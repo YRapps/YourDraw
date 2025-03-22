@@ -1,69 +1,22 @@
-# Welcome to your Lovable project
+# Наша бесплатная рисовалка с открытым кодом
 
-## Project info
+## Информация
 
-**URL**: https://lovable.dev/projects/43c20155-b9d7-4359-a346-67d344b89a94
+"Рисовалка" — это простое, но мощное приложение для творческого самовыражения, которое подойдет как детям, так и взрослым. С его помощью вы сможете создавать уникальные рисунки, зарисовки и даже целые художественные композиции, используя интуитивно понятный интерфейс и разнообразные инструменты.
 
-## How can I edit this code?
+Возможности приложения:
+Палитра цветов : выбирайте из миллионов оттенков или создавайте свои собственные, регулируя яркость, контраст и прозрачность.
+Фигуры и текст : добавляйте геометрические фигуры или текстовые надписи, чтобы сделать вашу работу более информативной или декоративной.
+Ластик и отмена действий : исправляйте ошибки с помощью ластика или функции отмены последних действий (Undo/Redo).
 
-There are several ways of editing your application.
+Особенности:
+- Простота использования : минималистичный дизайн и понятные настройки делают процесс рисования доступным даже для новичков.
+- Сохранение и экспорт : сохраняйте свои работы в высоком качестве на устройство
+  
+Для кого это приложение?
+"Рисовалка" идеально подходит для:
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/43c20155-b9d7-4359-a346-67d344b89a94) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with .
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/43c20155-b9d7-4359-a346-67d344b89a94) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+- Детей, которые хотят развивать творческие способности.
+- Любителей искусства, желающих практиковаться в рисовании.
+- Профессионалов, которым нужен быстрый инструмент для создания эскизов или заметок.
+Неважно, обладаете ли вы художественным опытом или просто хотите провести время за расслабляющим занятием — "Рисовалка" станет вашим надежным помощником в мире творчества. Скачайте приложение прямо сейчас и дайте волю своему воображению!
