@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, IText } from "fabric";
+import { Canvas, Circle, Rect, Triangle, Polygon, IText, Path } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { 
@@ -16,7 +16,8 @@ import {
   Save, 
   Layers,
   PaintBucket,
-  Download
+  Download,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -61,7 +62,7 @@ type Tool =
   | "text"
   | "fill";
 
-type Menu = "tools" | "view" | "objects";
+type Menu = "tools" | "view" | "objects" | "none";
 
 const DrawingCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -130,6 +131,9 @@ const DrawingCanvas: React.FC = () => {
     if (activeTool === "brush") {
       canvas.freeDrawingBrush.color = strokeColor;
       canvas.freeDrawingBrush.width = brushSize;
+      if (canvas.freeDrawingBrush.globalCompositeOperation) {
+        canvas.freeDrawingBrush.globalCompositeOperation = "source-over";
+      }
     } else if (activeTool === "eraser") {
       // Use a composite operation that simulates erasing
       canvas.freeDrawingBrush.color = "#ffffff";
@@ -209,7 +213,7 @@ const DrawingCanvas: React.FC = () => {
 
     switch (shape) {
       case 'circle':
-        object = new fabric.Circle({
+        object = new Circle({
           radius: 50,
           left: canvas.width! / 2 - 50,
           top: canvas.height! / 2 - 50,
@@ -220,7 +224,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'square':
-        object = new fabric.Rect({
+        object = new Rect({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -234,7 +238,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'triangle':
-        object = new fabric.Triangle({
+        object = new Triangle({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -257,7 +261,7 @@ const DrawingCanvas: React.FC = () => {
           points.push({ x, y });
         }
         
-        object = new fabric.Polygon(points, {
+        object = new Polygon(points, {
           left: canvas.width! / 2 - radius,
           top: canvas.height! / 2 - radius,
           fill: fillColor,
@@ -279,7 +283,7 @@ const DrawingCanvas: React.FC = () => {
   const addText = () => {
     if (!canvas || !textInput) return;
 
-    const textObject = new fabric.IText(textInput, {
+    const textObject = new IText(textInput, {
       left: canvas.width! / 2 - 100,
       top: canvas.height! / 2 - 20,
       width: 200,
@@ -371,6 +375,7 @@ const DrawingCanvas: React.FC = () => {
     const activeObject = canvas.getActiveObject();
     if (!activeObject || (activeObject.type !== 'textbox' && activeObject.type !== 'i-text')) return;
     
+    // @ts-ignore - text property exists on IText but TypeScript doesn't know
     setTextInput(activeObject.text || '');
     setTextDialogOpen(true);
 
@@ -443,6 +448,10 @@ const DrawingCanvas: React.FC = () => {
     saveCanvasState();
   };
 
+  const closeMenu = () => {
+    setActiveMenu("none");
+  };
+
   const toolButtons = [
     { tool: "select", icon: <MousePointer size={20} />, label: "Выделение" },
     { tool: "brush", icon: <Brush size={20} />, label: "Кисть" },
@@ -484,117 +493,74 @@ const DrawingCanvas: React.FC = () => {
         </Button>
       </div>
 
-      <div className="menu-container z-10">
-        <div className="flex justify-around mb-4">
-          <button
-            className={cn("menu-tab", activeMenu === "tools" && "active")}
-            onClick={() => setActiveMenu("tools")}
-          >
-            Инструменты
-          </button>
-          <button
-            className={cn("menu-tab", activeMenu === "view" && "active")}
-            onClick={() => setActiveMenu("view")}
-          >
-            Вид
-          </button>
-          <button
-            className={cn("menu-tab", activeMenu === "objects" && "active")}
-            onClick={() => setActiveMenu("objects")}
-          >
-            Объекты
-          </button>
-        </div>
-
-        {activeMenu === "tools" && (
-          <div className="grid grid-cols-5 gap-4 justify-items-center">
-            {toolButtons.map((btn) => (
-              <button
-                key={btn.tool}
-                className={cn("tool-btn", activeTool === btn.tool && "active")}
-                onClick={() => handleToolClick(btn.tool as Tool)}
-                title={btn.label}
-              >
-                {btn.icon}
-              </button>
-            ))}
+      {activeMenu !== "none" && (
+        <div className="menu-container z-10">
+          <div className="flex justify-around mb-4 relative">
+            <button
+              className={cn("menu-tab", activeMenu === "tools" && "active")}
+              onClick={() => setActiveMenu("tools")}
+            >
+              Инструменты
+            </button>
+            <button
+              className={cn("menu-tab", activeMenu === "view" && "active")}
+              onClick={() => setActiveMenu("view")}
+            >
+              Вид
+            </button>
+            <button
+              className={cn("menu-tab", activeMenu === "objects" && "active")}
+              onClick={() => setActiveMenu("objects")}
+            >
+              Объекты
+            </button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute right-0 top-0"
+              onClick={closeMenu}
+            >
+              <X size={18} />
+            </Button>
           </div>
-        )}
 
-        {activeMenu === "view" && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Цвет кисти:</span>
-              <div className="flex space-x-2">
-                {colorSwatches.slice(0, 5).map((color) => (
-                  <div
-                    key={color}
-                    className={cn("color-swatch", strokeColor === color && "active")}
-                    style={{ backgroundColor: color, borderColor: color === "#ffffff" ? "#ddd" : color }}
-                    onClick={() => setStrokeColor(color)}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              {colorSwatches.slice(5).map((color) => (
-                <div
-                  key={color}
-                  className={cn("color-swatch", strokeColor === color && "active")}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setStrokeColor(color)}
-                />
+          {activeMenu === "tools" && (
+            <div className="grid grid-cols-5 gap-4 justify-items-center">
+              {toolButtons.map((btn) => (
+                <button
+                  key={btn.tool}
+                  className={cn("tool-btn", activeTool === btn.tool && "active")}
+                  onClick={() => handleToolClick(btn.tool as Tool)}
+                  title={btn.label}
+                >
+                  {btn.icon}
+                </button>
               ))}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <div className="color-swatch relative" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
-                    <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">+</span>
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="w-64">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Выберите цвет:</label>
-                    <Input 
-                      type="color" 
-                      value={strokeColor} 
-                      onChange={(e) => setStrokeColor(e.target.value)} 
-                      className="w-full h-10"
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
+          )}
 
-            <div className="space-y-2">
+          {activeMenu === "view" && (
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Цвет заливки:</span>
+                <span className="text-sm font-medium">Цвет кисти:</span>
                 <div className="flex space-x-2">
-                  <div 
-                    className={cn("color-swatch", fillColor === "rgba(0, 0, 0, 0)" && "active")}
-                    style={{ 
-                      backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
-                      backgroundSize: '10px 10px',
-                      backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px'
-                    }}
-                    onClick={() => setFillColor("rgba(0, 0, 0, 0)")}
-                  />
-                  {colorSwatches.slice(0, 4).map((color) => (
+                  {colorSwatches.slice(0, 5).map((color) => (
                     <div
-                      key={`fill-${color}`}
-                      className={cn("color-swatch", fillColor === color && "active")}
+                      key={color}
+                      className={cn("color-swatch", strokeColor === color && "active")}
                       style={{ backgroundColor: color, borderColor: color === "#ffffff" ? "#ddd" : color }}
-                      onClick={() => setFillColor(color)}
+                      onClick={() => setStrokeColor(color)}
                     />
                   ))}
                 </div>
               </div>
               <div className="flex justify-end space-x-2">
-                {colorSwatches.slice(4, 9).map((color) => (
+                {colorSwatches.slice(5).map((color) => (
                   <div
-                    key={`fill-${color}`}
-                    className={cn("color-swatch", fillColor === color && "active")}
+                    key={color}
+                    className={cn("color-swatch", strokeColor === color && "active")}
                     style={{ backgroundColor: color }}
-                    onClick={() => setFillColor(color)}
+                    onClick={() => setStrokeColor(color)}
                   />
                 ))}
                 <Popover>
@@ -605,244 +571,309 @@ const DrawingCanvas: React.FC = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-64">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Выберите цвет заливки:</label>
+                      <label className="text-sm font-medium">Выберите цвет:</label>
                       <Input 
                         type="color" 
-                        value={fillColor === "rgba(0, 0, 0, 0)" ? "#ffffff" : fillColor} 
-                        onChange={(e) => setFillColor(e.target.value)} 
+                        value={strokeColor} 
+                        onChange={(e) => setStrokeColor(e.target.value)} 
                         className="w-full h-10"
                       />
                     </div>
                   </PopoverContent>
                 </Popover>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Непрозрачность:</span>
-                <span className="text-xs font-mono">{opacity}%</span>
-              </div>
-              <Slider 
-                value={[opacity]} 
-                onValueChange={(val) => setOpacity(val[0])} 
-                max={100} 
-                step={1}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Размер кисти:</span>
-                <span className="text-xs font-mono">{brushSize}px</span>
-              </div>
-              <Slider 
-                value={[brushSize]} 
-                onValueChange={(val) => setBrushSize(val[0])} 
-                min={1} 
-                max={50} 
-                step={1}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Углы фигуры:</span>
-                <span className="text-xs font-mono">{cornerRadius}px</span>
-              </div>
-              <Slider 
-                value={[cornerRadius]} 
-                onValueChange={(val) => setCornerRadius(val[0])} 
-                min={0} 
-                max={50} 
-                step={1}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Шрифт:</span>
-                <Select 
-                  value={fontFamily} 
-                  onValueChange={setFontFamily}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Выберите шрифт" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AVAILABLE_FONTS.map((font) => (
-                      <SelectItem 
-                        key={font.name} 
-                        value={font.family}
-                        style={{ fontFamily: font.family }}
-                      >
-                        {font.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Размер шрифта:</span>
-                <span className="text-xs font-mono">{fontSize}px</span>
-              </div>
-              <Slider 
-                value={[fontSize]} 
-                onValueChange={(val) => setFontSize(val[0])} 
-                min={10} 
-                max={100} 
-                step={1}
-              />
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Стиль шрифта:</span>
-                <div className="flex space-x-2">
-                  <Button
-                    variant={fontStyle === "normal" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setFontStyle("normal")}
-                    className="w-10 h-8"
-                  >
-                    Аа
-                  </Button>
-                  <Button
-                    variant={fontStyle === "bold" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setFontStyle("bold")}
-                    className="w-10 h-8 font-bold"
-                  >
-                    Аа
-                  </Button>
-                  <Button
-                    variant={fontStyle === "italic" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setFontStyle("italic")}
-                    className="w-10 h-8 italic"
-                  >
-                    Аа
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-center">
-              <Button 
-                variant="default" 
-                onClick={applyChangesToSelectedObject}
-                className="w-full"
-              >
-                Применить изменения
-              </Button>
-            </div>
-
-            <div className="flex justify-center">
-              <Button 
-                variant="outline" 
-                onClick={updateText}
-                className="w-full"
-              >
-                Редактировать текст
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {activeMenu === "objects" && (
-          <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Объекты на холсте:</span>
-              <span className="text-xs text-muted-foreground">{objects.length} объектов</span>
-            </div>
-
-            {objects.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
-                Нет объектов на холсте
-              </div>
-            ) : (
-              objects.map((obj, index) => (
-                <div 
-                  key={index}
-                  className="flex justify-between items-center p-2 rounded-lg bg-white shadow-sm"
-                >
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded-full bg-primary" />
-                    <span className="text-sm font-medium">
-                      {obj.type === 'circle' && 'Круг'}
-                      {obj.type === 'rect' && 'Прямоугольник'}
-                      {obj.type === 'triangle' && 'Треугольник'}
-                      {obj.type === 'polygon' && 'Многоугольник'}
-                      {obj.type === 'textbox' && `Текст: ${(obj as fabric.Textbox).text?.slice(0, 15)}${(obj as fabric.Textbox).text?.length! > 15 ? '...' : ''}`}
-                      {obj.type === 'path' && 'Линия'}
-                    </span>
-                  </div>
-                  <div className="flex space-x-1">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8"
-                      onClick={() => {
-                        if (canvas) {
-                          canvas.setActiveObject(obj);
-                          canvas.renderAll();
-                        }
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Цвет заливки:</span>
+                  <div className="flex space-x-2">
+                    <div 
+                      className={cn("color-swatch", fillColor === "rgba(0, 0, 0, 0)" && "active")}
+                      style={{ 
+                        backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)',
+                        backgroundSize: '10px 10px',
+                        backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px'
                       }}
+                      onClick={() => setFillColor("rgba(0, 0, 0, 0)")}
+                    />
+                    {colorSwatches.slice(0, 4).map((color) => (
+                      <div
+                        key={`fill-${color}`}
+                        className={cn("color-swatch", fillColor === color && "active")}
+                        style={{ backgroundColor: color, borderColor: color === "#ffffff" ? "#ddd" : color }}
+                        onClick={() => setFillColor(color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  {colorSwatches.slice(4, 9).map((color) => (
+                    <div
+                      key={`fill-${color}`}
+                      className={cn("color-swatch", fillColor === color && "active")}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setFillColor(color)}
+                    />
+                  ))}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div className="color-swatch relative" style={{ background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}>
+                        <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">+</span>
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Выберите цвет заливки:</label>
+                        <Input 
+                          type="color" 
+                          value={fillColor === "rgba(0, 0, 0, 0)" ? "#ffffff" : fillColor} 
+                          onChange={(e) => setFillColor(e.target.value)} 
+                          className="w-full h-10"
+                        />
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Непрозрачность:</span>
+                  <span className="text-xs font-mono">{opacity}%</span>
+                </div>
+                <Slider 
+                  value={[opacity]} 
+                  onValueChange={(val) => setOpacity(val[0])} 
+                  max={100} 
+                  step={1}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Размер кисти:</span>
+                  <span className="text-xs font-mono">{brushSize}px</span>
+                </div>
+                <Slider 
+                  value={[brushSize]} 
+                  onValueChange={(val) => setBrushSize(val[0])} 
+                  min={1} 
+                  max={50} 
+                  step={1}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Углы фигуры:</span>
+                  <span className="text-xs font-mono">{cornerRadius}px</span>
+                </div>
+                <Slider 
+                  value={[cornerRadius]} 
+                  onValueChange={(val) => setCornerRadius(val[0])} 
+                  min={0} 
+                  max={50} 
+                  step={1}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Шрифт:</span>
+                  <Select 
+                    value={fontFamily} 
+                    onValueChange={setFontFamily}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Выберите шрифт" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_FONTS.map((font) => (
+                        <SelectItem 
+                          key={font.name} 
+                          value={font.family}
+                          style={{ fontFamily: font.family }}
+                        >
+                          {font.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Размер шрифта:</span>
+                  <span className="text-xs font-mono">{fontSize}px</span>
+                </div>
+                <Slider 
+                  value={[fontSize]} 
+                  onValueChange={(val) => setFontSize(val[0])} 
+                  min={10} 
+                  max={100} 
+                  step={1}
+                />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Стиль шрифта:</span>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant={fontStyle === "normal" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFontStyle("normal")}
+                      className="w-10 h-8"
                     >
-                      <MousePointer size={16} />
+                      Аа
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8"
-                      onClick={() => bringToFront()}
+                    <Button
+                      variant={fontStyle === "bold" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFontStyle("bold")}
+                      className="w-10 h-8 font-bold"
                     >
-                      <Layers size={16} />
+                      Аа
                     </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => deleteObject(obj)}
+                    <Button
+                      variant={fontStyle === "italic" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFontStyle("italic")}
+                      className="w-10 h-8 italic"
                     >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        className="w-4 h-4"
-                      >
-                        <path d="M3 6h18"></path>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
+                      Аа
                     </Button>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
 
-            <div className="flex justify-between mt-4">
-              <Button 
-                variant="outline" 
-                onClick={bringToFront}
-                className="flex-1 mr-2"
-              >
-                На передний план
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={sendToBack}
-                className="flex-1"
-              >
-                На задний план
-              </Button>
+              <div className="flex justify-center">
+                <Button 
+                  variant="default" 
+                  onClick={applyChangesToSelectedObject}
+                  className="w-full"
+                >
+                  Применить изменения
+                </Button>
+              </div>
+
+              <div className="flex justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={updateText}
+                  className="w-full"
+                >
+                  Редактировать текст
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {activeMenu === "objects" && (
+            <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium">Объекты на холсте:</span>
+                <span className="text-xs text-muted-foreground">{objects.length} объектов</span>
+              </div>
+
+              {objects.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  Нет объектов на холсте
+                </div>
+              ) : (
+                objects.map((obj, index) => (
+                  <div 
+                    key={index}
+                    className="flex justify-between items-center p-2 rounded-lg bg-white shadow-sm"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 rounded-full bg-primary" />
+                      <span className="text-sm font-medium">
+                        {obj.type === 'circle' && 'Круг'}
+                        {obj.type === 'rect' && 'Прямоугольник'}
+                        {obj.type === 'triangle' && 'Треугольник'}
+                        {obj.type === 'polygon' && 'Многоугольник'}
+                        {obj.type === 'i-text' && `Текст: ${obj.text?.slice(0, 15)}${obj.text?.length > 15 ? '...' : ''}`}
+                        {obj.type === 'path' && 'Линия'}
+                      </span>
+                    </div>
+                    <div className="flex space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => {
+                          if (canvas) {
+                            canvas.setActiveObject(obj);
+                            canvas.renderAll();
+                          }
+                        }}
+                      >
+                        <MousePointer size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => bringToFront()}
+                      >
+                        <Layers size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => deleteObject(obj)}
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="w-4 h-4"
+                        >
+                          <path d="M3 6h18"></path>
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              <div className="flex justify-between mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={bringToFront}
+                  className="flex-1 mr-2"
+                >
+                  На передний план
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={sendToBack}
+                  className="flex-1"
+                >
+                  На задний план
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeMenu === "none" && (
+        <div className="menu-container-collapsed z-10">
+          <Button 
+            variant="outline" 
+            className="shadow-md bg-white"
+            onClick={() => setActiveMenu("tools")}
+          >
+            Открыть меню
+          </Button>
+        </div>
+      )}
 
       <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
         <DialogContent className="sm:max-w-md">
