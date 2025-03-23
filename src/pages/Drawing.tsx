@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -14,9 +13,13 @@ const Drawing = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log("Drawing page loaded with id:", id);
+    
     // If id is "new", create a new drawing
     if (id === "new") {
-      setDrawingId(generateDrawingId());
+      const newId = generateDrawingId();
+      console.log("Generated new drawing ID:", newId);
+      setDrawingId(newId);
       setIsLoading(false);
       return;
     }
@@ -24,6 +27,8 @@ const Drawing = () => {
     // Otherwise, load the existing drawing
     if (id) {
       const drawing = getDrawingById(id);
+      console.log("Retrieved drawing:", drawing ? "Found" : "Not found");
+      
       if (drawing) {
         setDrawingId(drawing.id);
         setDrawingData(drawing.data);
@@ -40,28 +45,35 @@ const Drawing = () => {
   const handleSaveDrawing = (canvasData: string, thumbnail: string) => {
     if (!drawingId) return;
     
+    console.log("Saving drawing with ID:", drawingId);
+    
+    // Get existing drawing to preserve its name if it exists
+    const existingDrawing = getDrawingById(drawingId);
+    
     // Create a name based on date if it's a new drawing
     const now = new Date();
-    const name = `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
+    const name = existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,
       name,
       data: canvasData,
       thumbnail,
-      createdAt: Date.now()
+      createdAt: existingDrawing?.createdAt || Date.now()
     });
     
     toast("Рисунок сохранен", {
       description: "Ваш рисунок успешно сохранен"
     });
     
-    navigate("/save");
+    navigate("/gallery");
   };
 
   // Auto-save handler
   const handleAutoSave = (canvasData: string, thumbnail: string) => {
     if (!drawingId) return;
+    
+    console.log("Auto-saving drawing:", drawingId);
     
     // Get existing drawing to preserve its name
     const existingDrawing = getDrawingById(drawingId);

@@ -1,6 +1,5 @@
 
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, PencilBrush, Circle, Rect, Triangle, Polygon, IText, Image } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -45,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import SaveOptions, { SaveOptions as SaveOptionsType } from "./SaveOptions";
+import * as fabric from "fabric";
 
 const AVAILABLE_FONTS = [
   { name: "Arial", family: "Arial, sans-serif", style: "normal" },
@@ -89,7 +89,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
-  const [canvas, setCanvas] = useState<Canvas | null>(null);
+  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -138,7 +138,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new Canvas(canvasRef.current, {
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'white',
@@ -146,7 +146,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       selection: true,
     });
 
-    fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
+    fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
     fabricCanvas.freeDrawingBrush.color = strokeColor;
     fabricCanvas.freeDrawingBrush.width = brushSize;
 
@@ -369,7 +369,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     const reader = new FileReader();
     reader.onload = (e) => {
-      const imgElement = new Image();
+      const imgElement = document.createElement("img");
       imgElement.src = e.target?.result as string;
       imgElement.onload = () => {
         const fabricImage = new fabric.Image(imgElement, {
@@ -395,7 +395,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     const reader = new FileReader();
     reader.onload = (e) => {
-      const imgElement = new Image();
+      const imgElement = document.createElement("img");
       imgElement.src = e.target?.result as string;
       imgElement.onload = () => {
         canvas.setBackgroundImage(new fabric.Image(imgElement), () => {
