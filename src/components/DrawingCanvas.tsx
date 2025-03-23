@@ -1,7 +1,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
-import { Canvas, Circle, Rect, Triangle, Polygon, IText, Path } from "fabric";
+import * as fabric from "fabric";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
   Circle as CircleIcon, 
@@ -17,7 +18,9 @@ import {
   Layers,
   PaintBucket,
   Download,
-  X
+  X,
+  Image as ImageIcon,
+  Upload
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -60,13 +63,17 @@ type Tool =
   | "triangle" 
   | "polygon" 
   | "text"
-  | "fill";
+  | "fill"
+  | "image";
 
 type Menu = "tools" | "view" | "objects" | "none";
 
 const DrawingCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvas, setCanvas] = useState<Canvas | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const fontFileInputRef = useRef<HTMLInputElement>(null);
+  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -84,7 +91,9 @@ const DrawingCanvas: React.FC = () => {
   const [objects, setObjects] = useState<any[]>([]);
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [customFonts, setCustomFonts] = useState<{name: string, family: string}[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -93,10 +102,10 @@ const DrawingCanvas: React.FC = () => {
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new Canvas(canvasRef.current, {
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
-      backgroundColor: 'transparent',
+      backgroundColor: 'white',
       preserveObjectStacking: true,
       selection: true,
     });
@@ -131,16 +140,11 @@ const DrawingCanvas: React.FC = () => {
     if (activeTool === "brush") {
       canvas.freeDrawingBrush.color = strokeColor;
       canvas.freeDrawingBrush.width = brushSize;
-      if (canvas.freeDrawingBrush.globalCompositeOperation) {
-        canvas.freeDrawingBrush.globalCompositeOperation = "source-over";
-      }
+      canvas.freeDrawingBrush.globalCompositeOperation = "source-over";
     } else if (activeTool === "eraser") {
-      // Use a composite operation that simulates erasing
       canvas.freeDrawingBrush.color = "#ffffff";
       canvas.freeDrawingBrush.width = brushSize * 2;
-      if (canvas.freeDrawingBrush.globalCompositeOperation) {
-        canvas.freeDrawingBrush.globalCompositeOperation = "destination-out";
-      }
+      canvas.freeDrawingBrush.globalCompositeOperation = "destination-out";
     }
   }, [activeTool, strokeColor, brushSize, canvas]);
 
@@ -213,7 +217,7 @@ const DrawingCanvas: React.FC = () => {
 
     switch (shape) {
       case 'circle':
-        object = new Circle({
+        object = new fabric.Circle({
           radius: 50,
           left: canvas.width! / 2 - 50,
           top: canvas.height! / 2 - 50,
@@ -224,7 +228,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'square':
-        object = new Rect({
+        object = new fabric.Rect({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -238,7 +242,7 @@ const DrawingCanvas: React.FC = () => {
         });
         break;
       case 'triangle':
-        object = new Triangle({
+        object = new fabric.Triangle({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -261,7 +265,7 @@ const DrawingCanvas: React.FC = () => {
           points.push({ x, y });
         }
         
-        object = new Polygon(points, {
+        object = new fabric.Polygon(points, {
           left: canvas.width! / 2 - radius,
           top: canvas.height! / 2 - radius,
           fill: fillColor,
@@ -283,7 +287,7 @@ const DrawingCanvas: React.FC = () => {
   const addText = () => {
     if (!canvas || !textInput) return;
 
-    const textObject = new IText(textInput, {
+    const textObject = new fabric.IText(textInput, {
       left: canvas.width! / 2 - 100,
       top: canvas.height! / 2 - 20,
       width: 200,
@@ -304,6 +308,53 @@ const DrawingCanvas: React.FC = () => {
     setActiveTool('select');
   };
 
+  const addImage = (file: File) => {
+    if (!canvas) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imgElement = new Image();
+      imgElement.src = e.target?.result as string;
+      imgElement.onload = () => {
+        const fabricImage = new fabric.Image(imgElement, {
+          left: canvas.width! / 2 - imgElement.width / 4,
+          top: canvas.height! / 2 - imgElement.height / 4,
+          scaleX: 0.5,
+          scaleY: 0.5,
+          opacity: opacity / 100,
+        });
+        
+        canvas.add(fabricImage);
+        canvas.setActiveObject(fabricImage);
+        canvas.renderAll();
+        saveCanvasState();
+      };
+    };
+    reader.readAsDataURL(file);
+    setActiveTool('select');
+  };
+
+  const setBackgroundImage = (file: File) => {
+    if (!canvas) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imgElement = new Image();
+      imgElement.src = e.target?.result as string;
+      imgElement.onload = () => {
+        canvas.setBackgroundImage(new fabric.Image(imgElement), () => {
+          canvas.renderAll();
+          saveCanvasState();
+          toast({
+            title: "Фон изменен",
+            description: "Фоновое изображение успешно установлено",
+          });
+        });
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleToolClick = (tool: Tool) => {
     if (tool === 'polygon') {
       setPolygonSidesDialogOpen(true);
@@ -315,16 +366,29 @@ const DrawingCanvas: React.FC = () => {
       return;
     }
 
+    if (tool === 'image') {
+      fileInputRef.current?.click();
+      return;
+    }
+
     if (tool === 'fill' && canvas) {
       const activeObject = canvas.getActiveObject();
       if (activeObject) {
         activeObject.set('fill', fillColor);
         canvas.renderAll();
         saveCanvasState();
+        toast({
+          title: "Заливка",
+          description: "Объект заполнен выбранным цветом",
+        });
       } else {
         canvas.backgroundColor = fillColor;
         canvas.renderAll();
         saveCanvasState();
+        toast({
+          title: "Заливка",
+          description: "Фон заполнен выбранным цветом",
+        });
       }
       return;
     }
@@ -409,10 +473,8 @@ const DrawingCanvas: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     
-    toast({
-      title: "Сохранено",
-      description: "Рисунок сохранен на вашем устройстве",
-    });
+    // Перенаправляем на страницу сохранения
+    navigate('/save');
   };
 
   const bringToFront = () => {
@@ -452,6 +514,61 @@ const DrawingCanvas: React.FC = () => {
     setActiveMenu("none");
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    addImage(files[0]);
+    
+    // Сбрасываем значение поля для возможности повторной загрузки того же файла
+    e.target.value = '';
+  };
+
+  const handleBackgroundChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setBackgroundImage(files[0]);
+    
+    // Сбрасываем значение поля для возможности повторной загрузки того же файла
+    e.target.value = '';
+  };
+
+  const handleFontUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const fontFile = files[0];
+    const fontName = fontFile.name.split('.')[0];
+    const fontUrl = URL.createObjectURL(fontFile);
+    
+    // Создаем новый элемент стиля для загруженного шрифта
+    const fontFace = `
+      @font-face {
+        font-family: '${fontName}';
+        src: url('${fontUrl}') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+    `;
+    
+    // Добавляем стиль в документ
+    const style = document.createElement('style');
+    style.textContent = fontFace;
+    document.head.appendChild(style);
+    
+    // Добавляем шрифт в список доступных
+    setCustomFonts(prev => [...prev, { name: fontName, family: `${fontName}, sans-serif` }]);
+    
+    toast({
+      title: "Шрифт загружен",
+      description: `Шрифт ${fontName} успешно добавлен и доступен для использования`,
+    });
+    
+    // Сбрасываем значение поля для возможности повторной загрузки того же файла
+    e.target.value = '';
+  };
+
   const toolButtons = [
     { tool: "select", icon: <MousePointer size={20} />, label: "Выделение" },
     { tool: "brush", icon: <Brush size={20} />, label: "Кисть" },
@@ -462,6 +579,7 @@ const DrawingCanvas: React.FC = () => {
     { tool: "polygon", icon: <Hexagon size={20} />, label: "Многоугольник" },
     { tool: "text", icon: <Text size={20} />, label: "Текст" },
     { tool: "fill", icon: <PaintBucket size={20} />, label: "Заливка" },
+    { tool: "image", icon: <ImageIcon size={20} />, label: "Изображение" },
   ];
 
   const colorSwatches = [
@@ -471,6 +589,33 @@ const DrawingCanvas: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4">
+      {/* Скрытое поле для загрузки изображений */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
+      
+      {/* Скрытое поле для загрузки фонового изображения */}
+      <input
+        type="file"
+        ref={backgroundInputRef}
+        onChange={handleBackgroundChange}
+        accept="image/*"
+        className="hidden"
+      />
+      
+      {/* Скрытое поле для загрузки шрифтов */}
+      <input
+        type="file"
+        ref={fontFileInputRef}
+        onChange={handleFontUpload}
+        accept=".ttf,.otf,.woff,.woff2"
+        className="hidden"
+      />
+
       <div className="canvas-container bg-white bg-opacity-80 rounded-2xl shadow-xl mb-20 overflow-hidden">
         <canvas ref={canvasRef} className="canvas" />
       </div>
@@ -697,8 +842,24 @@ const DrawingCanvas: React.FC = () => {
                           {font.name}
                         </SelectItem>
                       ))}
+                      {customFonts.map((font) => (
+                        <SelectItem 
+                          key={font.name} 
+                          value={font.family}
+                          style={{ fontFamily: font.family }}
+                        >
+                          {font.name} (Custom)
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Загрузить шрифт:</span>
+                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
+                    <Upload size={16} className="mr-2" /> Выбрать файл
+                  </Button>
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -742,6 +903,13 @@ const DrawingCanvas: React.FC = () => {
                     </Button>
                   </div>
                 </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Фоновое изображение:</span>
+                <Button variant="outline" size="sm" onClick={() => backgroundInputRef.current?.click()}>
+                  <Upload size={16} className="mr-2" /> Загрузить
+                </Button>
               </div>
 
               <div className="flex justify-center">
@@ -792,6 +960,7 @@ const DrawingCanvas: React.FC = () => {
                         {obj.type === 'polygon' && 'Многоугольник'}
                         {obj.type === 'i-text' && `Текст: ${obj.text?.slice(0, 15)}${obj.text?.length > 15 ? '...' : ''}`}
                         {obj.type === 'path' && 'Линия'}
+                        {obj.type === 'image' && 'Изображение'}
                       </span>
                     </div>
                     <div className="flex space-x-1">
@@ -915,6 +1084,15 @@ const DrawingCanvas: React.FC = () => {
                         style={{ fontFamily: font.family }}
                       >
                         {font.name}
+                      </SelectItem>
+                    ))}
+                    {customFonts.map((font) => (
+                      <SelectItem 
+                        key={font.name} 
+                        value={font.family}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.name} (Custom)
                       </SelectItem>
                     ))}
                   </SelectContent>

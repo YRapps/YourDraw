@@ -30,6 +30,8 @@ declare module 'fabric' {
       quality?: number;
       multiplier?: number;
     }): string;
+    setBackgroundImage(image: any, callback: Function): Canvas;
+    setBackgroundColor(color: string, callback?: Function): Canvas;
   }
 
   export class Circle {
@@ -73,5 +75,14 @@ declare module 'fabric' {
     set(options: any): Path;
     bringToFront(): Path;
     sendToBack(): Path;
+  }
+
+  export class Image {
+    constructor(element: HTMLImageElement, options?: any);
+    set(options: any): Image;
+    bringToFront(): Image;
+    sendToBack(): Image;
+    
+    static fromURL(url: string, callback: Function, options?: any): void;
   }
 }
