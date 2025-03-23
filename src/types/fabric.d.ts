@@ -1,7 +1,21 @@
 
 // Type definitions for fabric.js
 declare module 'fabric' {
-  export class Canvas {
+  const fabric: {
+    Canvas: typeof Canvas;
+    PencilBrush: typeof PencilBrush;
+    Circle: typeof Circle;
+    Rect: typeof Rect;
+    Triangle: typeof Triangle;
+    Polygon: typeof Polygon;
+    IText: typeof IText;
+    Path: typeof Path;
+    Image: typeof Image;
+  };
+  
+  export = fabric;
+  
+  class Canvas {
     constructor(element: HTMLCanvasElement | string, options?: any);
     width: number | undefined;
     height: number | undefined;
@@ -30,42 +44,42 @@ declare module 'fabric' {
     setBackgroundColor(color: string, callback?: Function): Canvas;
   }
 
-  export class PencilBrush {
+  class PencilBrush {
     constructor(canvas: Canvas);
     color: string;
     width: number;
     globalCompositeOperation?: string;
   }
 
-  export class Circle {
+  class Circle {
     constructor(options?: any);
     set(options: any): Circle;
     bringToFront(): Circle;
     sendToBack(): Circle;
   }
 
-  export class Rect {
+  class Rect {
     constructor(options?: any);
     set(options: any): Rect;
     bringToFront(): Rect;
     sendToBack(): Rect;
   }
 
-  export class Triangle {
+  class Triangle {
     constructor(options?: any);
     set(options: any): Triangle;
     bringToFront(): Triangle;
     sendToBack(): Triangle;
   }
 
-  export class Polygon {
+  class Polygon {
     constructor(points: Array<{x: number, y: number}>, options?: any);
     set(options: any): Polygon;
     bringToFront(): Polygon;
     sendToBack(): Polygon;
   }
 
-  export class IText {
+  class IText {
     constructor(text: string, options?: any);
     text: string;
     set(options: any): IText;
@@ -73,14 +87,14 @@ declare module 'fabric' {
     sendToBack(): IText;
   }
 
-  export class Path {
+  class Path {
     constructor(path: string, options?: any);
     set(options: any): Path;
     bringToFront(): Path;
     sendToBack(): Path;
   }
 
-  export class Image {
+  class Image {
     constructor(element: HTMLImageElement, options?: any);
     set(options: any): Image;
     bringToFront(): Image;
