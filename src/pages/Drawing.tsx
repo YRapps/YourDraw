@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -31,7 +32,21 @@ const Drawing = () => {
       
       if (drawing) {
         setDrawingId(drawing.id);
-        setDrawingData(drawing.data);
+        // Check if the drawing data might be a YRD format (which is a JSON object containing canvasJSON)
+        try {
+          const parsedData = JSON.parse(drawing.data);
+          if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
+            // If it's YRD format, extract the canvasJSON part
+            console.log("Loading YRD format drawing");
+            setDrawingData(JSON.stringify(parsedData.canvasJSON));
+          } else {
+            // Regular canvas JSON data
+            setDrawingData(drawing.data);
+          }
+        } catch (e) {
+          // If parsing fails, it's regular JSON canvas data
+          setDrawingData(drawing.data);
+        }
         setIsLoading(false);
       } else {
         toast.error("Рисунок не найден", {
@@ -75,7 +90,7 @@ const Drawing = () => {
     
     console.log("Auto-saving drawing:", drawingId);
     
-    // Get existing drawing to preserve its name
+    // Get existing drawing to preserve its name and creation date
     const existingDrawing = getDrawingById(drawingId);
     const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
     
