@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import * as fabric from "fabric";
+import { Canvas, PencilBrush, Circle, Rect, Triangle, Polygon, IText, Image } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -42,8 +42,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import SaveOptions, { SaveOptions as SaveOptionsType } from "./SaveOptions";
 
 const AVAILABLE_FONTS = [
   { name: "Arial", family: "Arial, sans-serif", style: "normal" },
@@ -75,18 +75,20 @@ interface DrawingCanvasProps {
   drawingId: string;
   initialData?: string | null;
   onSave?: (canvasData: string, thumbnail: string) => void;
+  onAutoSave?: (canvasData: string, thumbnail: string) => void;
 }
 
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
   drawingId, 
   initialData, 
-  onSave 
+  onSave,
+  onAutoSave
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
-  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
+  const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -105,8 +107,28 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [customFonts, setCustomFonts] = useState<{name: string, family: string}[]>([]);
+  const [saveOptionsOpen, setSaveOptionsOpen] = useState(false);
+  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const { toast: showToast } = useToast();
   const navigate = useNavigate();
+
+  const triggerAutoSave = () => {
+    if (!canvas || !onAutoSave) return;
+    
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      const dataURL = canvas.toDataURL({
+        format: 'png',
+        quality: 1,
+      });
+      onAutoSave(JSON.stringify(canvas.toJSON()), dataURL);
+    }, 2000);
+    
+    setAutoSaveTimer(timer);
+  };
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -115,7 +137,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+    const fabricCanvas = new Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'white',
@@ -123,15 +145,24 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       selection: true,
     });
 
-    fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+    fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
     fabricCanvas.freeDrawingBrush.color = strokeColor;
     fabricCanvas.freeDrawingBrush.width = brushSize;
 
     setCanvas(fabricCanvas);
 
-    fabricCanvas.on('object:added', () => saveCanvasState());
-    fabricCanvas.on('object:modified', () => saveCanvasState());
-    fabricCanvas.on('object:removed', () => saveCanvasState());
+    fabricCanvas.on('object:added', () => {
+      saveCanvasState();
+      triggerAutoSave();
+    });
+    fabricCanvas.on('object:modified', () => {
+      saveCanvasState();
+      triggerAutoSave();
+    });
+    fabricCanvas.on('object:removed', () => {
+      saveCanvasState();
+      triggerAutoSave();
+    });
     fabricCanvas.on('selection:created', handleSelectionCreated);
     fabricCanvas.on('selection:updated', handleSelectionCreated);
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
@@ -146,6 +177,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
 
     return () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
       fabricCanvas.dispose();
     };
   }, []);
@@ -476,30 +510,45 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     }
   };
 
-  const saveAsPNG = () => {
+  const handleSaveOptions = (options: SaveOptionsType) => {
     if (!canvas) return;
     
+    const originalBgColor = canvas.backgroundColor;
+    if (options.background === "white") {
+      canvas.backgroundColor = "white";
+    } else {
+      canvas.backgroundColor = "";
+    }
+    
+    canvas.renderAll();
+    
     const dataURL = canvas.toDataURL({
-      format: 'png',
+      format: options.format,
       quality: 1,
       multiplier: 2,
     });
     
-    if (onSave && drawingId) {
+    canvas.backgroundColor = originalBgColor;
+    canvas.renderAll();
+    
+    if (options.saveToDevice) {
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = `${options.filename}.${options.format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast("Рисунок скачан", {
+        description: "Ваш рисунок был скачан на устройство",
+      });
+    } else if (onSave && drawingId) {
       onSave(JSON.stringify(canvas.toJSON()), dataURL);
-      return;
     }
-    
-    const link = document.createElement('a');
-    link.href = dataURL;
-    link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast("Рисунок сохранен", {
-      description: "Ваш рисунок был скачан на устройство",
-    });
+  };
+
+  const saveAsPNG = () => {
+    setSaveOptionsOpen(true);
   };
 
   const bringToFront = () => {
@@ -589,16 +638,16 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   };
 
   const toolButtons = [
-    { tool: "select", icon: <MousePointer size={20} />, label: "Выделение" },
-    { tool: "brush", icon: <Brush size={20} />, label: "Кисть" },
-    { tool: "eraser", icon: <Eraser size={20} />, label: "Ластик" },
-    { tool: "circle", icon: <CircleIcon size={20} />, label: "Круг" },
-    { tool: "square", icon: <Square size={20} />, label: "Квадрат" },
-    { tool: "triangle", icon: <TriangleIcon size={20} />, label: "Треугольник" },
-    { tool: "polygon", icon: <Hexagon size={20} />, label: "Многоугольник" },
-    { tool: "text", icon: <Text size={20} />, label: "Текст" },
-    { tool: "fill", icon: <PaintBucket size={20} />, label: "Заливка" },
-    { tool: "image", icon: <ImageIcon size={20} />, label: "Изображение" },
+    { tool: "select", icon: <MousePointer size={20} />, ariaLabel: "Выделение" },
+    { tool: "brush", icon: <Brush size={20} />, ariaLabel: "Кисть" },
+    { tool: "eraser", icon: <Eraser size={20} />, ariaLabel: "Ластик" },
+    { tool: "circle", icon: <CircleIcon size={20} />, ariaLabel: "Круг" },
+    { tool: "square", icon: <Square size={20} />, ariaLabel: "Квадрат" },
+    { tool: "triangle", icon: <TriangleIcon size={20} />, ariaLabel: "Треугольник" },
+    { tool: "polygon", icon: <Hexagon size={20} />, ariaLabel: "Многоугольник" },
+    { tool: "text", icon: <Text size={20} />, ariaLabel: "Текст" },
+    { tool: "fill", icon: <PaintBucket size={20} />, ariaLabel: "Заливка" },
+    { tool: "image", icon: <ImageIcon size={20} />, ariaLabel: "Изображение" },
   ];
 
   const colorSwatches = [
@@ -614,7 +663,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             <Button 
               variant="outline"
               className="shadow-md bg-white"
-              title="На главную"
+              aria-label="На главную"
             >
               <Home size={20} />
             </Button>
@@ -624,7 +673,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             <Button 
               variant="outline"
               className="shadow-md bg-white"
-              title="Галерея"
+              aria-label="Галерея"
             >
               <GridIcon size={20} />
             </Button>
@@ -634,7 +683,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             variant="outline"
             className="shadow-md bg-white"
             onClick={handleUndo}
-            title="Отменить"
+            aria-label="Отменить"
           >
             <Undo size={20} />
           </Button>
@@ -649,6 +698,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           Сохранить
         </Button>
       </div>
+
+      <SaveOptions
+        isOpen={saveOptionsOpen}
+        onClose={() => setSaveOptionsOpen(false)}
+        onSave={handleSaveOptions}
+      />
 
       <input
         type="file"
@@ -716,7 +771,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   key={btn.tool}
                   className={cn("tool-btn", activeTool === btn.tool && "active")}
                   onClick={() => handleToolClick(btn.tool as Tool)}
-                  title={btn.label}
+                  aria-label={btn.ariaLabel}
                 >
                   {btn.icon}
                 </button>
@@ -877,217 +932,3 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                         <SelectItem 
                           key={font.name} 
                           value={font.family}
-                          style={{ fontFamily: font.family }}
-                        >
-                          {font.name}
-                        </SelectItem>
-                      ))}
-                      {customFonts.map((font) => (
-                        <SelectItem 
-                          key={font.name} 
-                          value={font.family}
-                          style={{ fontFamily: font.family }}
-                        >
-                          {font.name} (Custom)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Загрузить шрифт:</span>
-                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
-                    <Upload size={16} className="mr-1" /> Добавить
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeMenu === "objects" && (
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={bringToFront}
-                >
-                  <Layers size={16} className="mr-1" /> На передний план
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={sendToBack}
-                >
-                  <Layers size={16} className="mr-1" /> На задний план
-                </Button>
-              </div>
-              
-              <div className="flex justify-between">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={updateText}
-                >
-                  <Text size={16} className="mr-1" /> Изменить текст
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => backgroundInputRef.current?.click()}
-                >
-                  <ImageIcon size={16} className="mr-1" /> Фон
-                </Button>
-              </div>
-              
-              <div className="flex justify-between">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={applyChangesToSelectedObject}
-                >
-                  <Save size={16} className="mr-1" /> Применить изменения
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => deleteObject()}
-                >
-                  <Trash2 size={16} className="mr-1" /> Удалить
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Введите текст</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Текст:</label>
-              <Input
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Введите ваш текст здесь"
-              />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-2">
-                <label className="text-sm font-medium">Шрифт:</label>
-                <Select value={fontFamily} onValueChange={setFontFamily}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите шрифт" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AVAILABLE_FONTS.map((font) => (
-                      <SelectItem
-                        key={font.name}
-                        value={font.family}
-                        style={{ fontFamily: font.family }}
-                      >
-                        {font.name}
-                      </SelectItem>
-                    ))}
-                    {customFonts.map((font) => (
-                      <SelectItem
-                        key={font.name}
-                        value={font.family}
-                        style={{ fontFamily: font.family }}
-                      >
-                        {font.name} (Custom)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-1 space-y-2">
-                <label className="text-sm font-medium">Размер:</label>
-                <Input
-                  type="number"
-                  value={fontSize}
-                  onChange={(e) => setFontSize(Number(e.target.value))}
-                  min={8}
-                  max={200}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Стиль:</label>
-              <div className="flex gap-2">
-                <Button
-                  variant={fontStyle === "normal" ? "default" : "outline"}
-                  onClick={() => setFontStyle("normal")}
-                  className="flex-1"
-                >
-                  Обычный
-                </Button>
-                <Button
-                  variant={fontStyle === "bold" ? "default" : "outline"}
-                  onClick={() => setFontStyle("bold")}
-                  className="flex-1"
-                >
-                  Жирный
-                </Button>
-                <Button
-                  variant={fontStyle === "italic" ? "default" : "outline"}
-                  onClick={() => setFontStyle("italic")}
-                  className="flex-1"
-                >
-                  Курсив
-                </Button>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>
-              Отмена
-            </Button>
-            <Button onClick={addText} disabled={!textInput.trim()}>
-              Добавить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Выберите количество сторон</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex justify-between items-center">
-              <span>Количество сторон: {polygonSides}</span>
-            </div>
-            <Slider
-              value={[polygonSides]}
-              onValueChange={(value) => setPolygonSides(value[0])}
-              min={3}
-              max={12}
-              step={1}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPolygonSidesDialogOpen(false)}>
-              Отмена
-            </Button>
-            <Button
-              onClick={() => {
-                addShape("polygon");
-                setPolygonSidesDialogOpen(false);
-              }}
-            >
-              Добавить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default DrawingCanvas;

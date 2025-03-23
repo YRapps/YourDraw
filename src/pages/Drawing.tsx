@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -58,6 +59,25 @@ const Drawing = () => {
     navigate("/save");
   };
 
+  // Auto-save handler
+  const handleAutoSave = (canvasData: string, thumbnail: string) => {
+    if (!drawingId) return;
+    
+    // Get existing drawing to preserve its name
+    const existingDrawing = getDrawingById(drawingId);
+    const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
+    
+    saveDrawing({
+      id: drawingId,
+      name,
+      data: canvasData,
+      thumbnail,
+      createdAt: existingDrawing?.createdAt || Date.now()
+    });
+    
+    // No toast notification for auto-save to prevent spamming
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 overflow-hidden">
       <Helmet>
@@ -85,6 +105,7 @@ const Drawing = () => {
           drawingId={drawingId}
           initialData={drawingData}
           onSave={handleSaveDrawing}
+          onAutoSave={handleAutoSave}
         />
       )}
     </div>
