@@ -115,7 +115,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    // Create a new fabric Canvas instance
     const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
@@ -124,15 +123,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       selection: true,
     });
 
-    // Create and initialize the freeDrawingBrush right after canvas creation
-    // This is the critical fix - we need to explicitly create the brush
     fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
     fabricCanvas.freeDrawingBrush.color = strokeColor;
     fabricCanvas.freeDrawingBrush.width = brushSize;
 
     setCanvas(fabricCanvas);
 
-    // Set up event listeners
     fabricCanvas.on('object:added', () => saveCanvasState());
     fabricCanvas.on('object:modified', () => saveCanvasState());
     fabricCanvas.on('object:removed', () => saveCanvasState());
@@ -140,7 +136,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     fabricCanvas.on('selection:updated', handleSelectionCreated);
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
     
-    // If we have initial data, load it
     if (initialData) {
       fabricCanvas.loadFromJSON(initialData, () => {
         fabricCanvas.renderAll();
@@ -465,11 +460,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const activeObject = canvas.getActiveObject();
     if (!activeObject || (activeObject.type !== 'textbox' && activeObject.type !== 'i-text')) return;
     
-    // @ts-ignore - text property exists on IText but TypeScript doesn't know
     setTextInput(activeObject.text || '');
     setTextDialogOpen(true);
 
-    // After editing, update the text
     if (textInput) {
       activeObject.set({
         text: textInput,
@@ -492,13 +485,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       multiplier: 2,
     });
     
-    // If onSave callback is provided, use it (for browser storage)
     if (onSave && drawingId) {
       onSave(JSON.stringify(canvas.toJSON()), dataURL);
       return;
     }
     
-    // Otherwise fall back to download
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
@@ -506,7 +497,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     link.click();
     document.body.removeChild(link);
     
-    // Show save success toast
     toast("Рисунок сохранен", {
       description: "Ваш рисунок был скачан на устройство",
     });
@@ -555,7 +545,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     addImage(files[0]);
     
-    // Сбрасываем значение поля для возможности повторной загрузки того же файла
     e.target.value = '';
   };
 
@@ -565,7 +554,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     setBackgroundImage(files[0]);
     
-    // Сбрасываем значение поля для возможности повторной загрузки того же файла
     e.target.value = '';
   };
 
@@ -577,7 +565,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const fontName = fontFile.name.split('.')[0];
     const fontUrl = URL.createObjectURL(fontFile);
     
-    // Создаем новый элемент стиля для загруженного шрифта
     const fontFace = `
       @font-face {
         font-family: '${fontName}';
@@ -587,12 +574,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       }
     `;
     
-    // Добавляем стиль в документ
     const style = document.createElement('style');
     style.textContent = fontFace;
     document.head.appendChild(style);
     
-    // Добавляем шрифт в список доступных
     setCustomFonts(prev => [...prev, { name: fontName, family: `${fontName}, sans-serif` }]);
     
     toast({
@@ -600,7 +585,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       description: `Шрифт ${fontName} успешно добавлен и доступен для использования`,
     });
     
-    // Сбрасываем значение поля для возможности повторной загрузки того же файла
     e.target.value = '';
   };
 
@@ -666,7 +650,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         </Button>
       </div>
 
-      {/* Скрытое поле для загрузки изображений */}
       <input
         type="file"
         ref={fileInputRef}
@@ -675,7 +658,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         className="hidden"
       />
       
-      {/* Скрытое поле для загрузки фонового изображения */}
       <input
         type="file"
         ref={backgroundInputRef}
@@ -684,7 +666,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         className="hidden"
       />
       
-      {/* Скрытое поле для загрузки шрифтов */}
       <input
         type="file"
         ref={fontFileInputRef}
@@ -693,7 +674,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         className="hidden"
       />
 
-      {/* Canvas Container */}
       <div className="canvas-container bg-white bg-opacity-80 rounded-2xl shadow-xl mb-20 overflow-hidden mt-16">
         <canvas ref={canvasRef} className="canvas" />
       </div>
@@ -917,4 +897,197 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Загрузить шрифт:</span>
-                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click
+                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
+                    <Upload size={16} className="mr-1" /> Добавить
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeMenu === "objects" && (
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={bringToFront}
+                >
+                  <Layers size={16} className="mr-1" /> На передний план
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={sendToBack}
+                >
+                  <Layers size={16} className="mr-1" /> На задний план
+                </Button>
+              </div>
+              
+              <div className="flex justify-between">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={updateText}
+                >
+                  <Text size={16} className="mr-1" /> Изменить текст
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => backgroundInputRef.current?.click()}
+                >
+                  <ImageIcon size={16} className="mr-1" /> Фон
+                </Button>
+              </div>
+              
+              <div className="flex justify-between">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={applyChangesToSelectedObject}
+                >
+                  <Save size={16} className="mr-1" /> Применить изменения
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => deleteObject()}
+                >
+                  <Trash2 size={16} className="mr-1" /> Удалить
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Введите текст</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Текст:</label>
+              <Input
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                placeholder="Введите ваш текст здесь"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-medium">Шрифт:</label>
+                <Select value={fontFamily} onValueChange={setFontFamily}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите шрифт" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AVAILABLE_FONTS.map((font) => (
+                      <SelectItem
+                        key={font.name}
+                        value={font.family}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.name}
+                      </SelectItem>
+                    ))}
+                    {customFonts.map((font) => (
+                      <SelectItem
+                        key={font.name}
+                        value={font.family}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.name} (Custom)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-medium">Размер:</label>
+                <Input
+                  type="number"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  min={8}
+                  max={200}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Стиль:</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={fontStyle === "normal" ? "default" : "outline"}
+                  onClick={() => setFontStyle("normal")}
+                  className="flex-1"
+                >
+                  Обычный
+                </Button>
+                <Button
+                  variant={fontStyle === "bold" ? "default" : "outline"}
+                  onClick={() => setFontStyle("bold")}
+                  className="flex-1"
+                >
+                  Жирный
+                </Button>
+                <Button
+                  variant={fontStyle === "italic" ? "default" : "outline"}
+                  onClick={() => setFontStyle("italic")}
+                  className="flex-1"
+                >
+                  Курсив
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={addText} disabled={!textInput.trim()}>
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Выберите количество сторон</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex justify-between items-center">
+              <span>Количество сторон: {polygonSides}</span>
+            </div>
+            <Slider
+              value={[polygonSides]}
+              onValueChange={(value) => setPolygonSides(value[0])}
+              min={3}
+              max={12}
+              step={1}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPolygonSidesDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={() => {
+                addShape("polygon");
+                setPolygonSidesDialogOpen(false);
+              }}
+            >
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DrawingCanvas;
