@@ -1,6 +1,7 @@
 
 // Type definitions for fabric.js
 declare module 'fabric' {
+  // Export the fabric namespace
   const fabric: {
     Canvas: typeof Canvas;
     PencilBrush: typeof PencilBrush;

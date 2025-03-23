@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
 import { useToast } from "@/components/ui/use-toast";
@@ -101,6 +102,7 @@ const DrawingCanvas: React.FC = () => {
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
+    // Create a new fabric Canvas instance
     const fabricCanvas = new fabric.Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
@@ -109,13 +111,15 @@ const DrawingCanvas: React.FC = () => {
       selection: true,
     });
 
-    // Initialize the brush AFTER creating the canvas
+    // Create and initialize the freeDrawingBrush right after canvas creation
+    // This is the critical fix - we need to explicitly create the brush
     fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
     fabricCanvas.freeDrawingBrush.color = strokeColor;
     fabricCanvas.freeDrawingBrush.width = brushSize;
 
     setCanvas(fabricCanvas);
 
+    // Set up event listeners
     fabricCanvas.on('object:added', () => saveCanvasState());
     fabricCanvas.on('object:modified', () => saveCanvasState());
     fabricCanvas.on('object:removed', () => saveCanvasState());
