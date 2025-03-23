@@ -21,7 +21,8 @@ import {
   Image as ImageIcon,
   Upload,
   Home,
-  GridIcon
+  GridIcon,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -916,5 +917,4 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Загрузить шрифт:</span>
-                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
-                    <Upload
+                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click
