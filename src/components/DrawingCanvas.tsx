@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { Canvas, PencilBrush, Circle, Rect, Triangle, Polygon, IText, Image } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
@@ -932,3 +933,233 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                         <SelectItem 
                           key={font.name} 
                           value={font.family}
+                          style={{ fontFamily: font.family }}
+                        >
+                          {font.name}
+                        </SelectItem>
+                      ))}
+                      {customFonts.map((font) => (
+                        <SelectItem 
+                          key={font.name} 
+                          value={font.family}
+                          style={{ fontFamily: font.family }}
+                        >
+                          {font.name} (Custom)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Загрузить шрифт:</span>
+                  <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
+                    <Upload size={20} className="mr-2" />
+                    Загрузить
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeMenu === "objects" && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Управление слоями:</span>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={bringToFront}
+                    aria-label="На передний план"
+                  >
+                    <Layers size={16} className="mr-1" />
+                    Вперед
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={sendToBack}
+                    aria-label="На задний план"
+                  >
+                    <Layers size={16} className="mr-1 transform rotate-180" />
+                    Назад
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => deleteObject()}
+                    aria-label="Удалить"
+                  >
+                    <Trash2 size={16} className="mr-1" />
+                    Удалить
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Объекты на холсте:</span>
+                  <span className="text-xs text-gray-500">{objects.length} объектов</span>
+                </div>
+                <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
+                  {objects.map((obj, index) => (
+                    <div 
+                      key={index}
+                      className="px-2 py-1 rounded hover:bg-gray-100 cursor-pointer flex justify-between items-center text-sm"
+                      onClick={() => {
+                        if (canvas) {
+                          canvas.setActiveObject(obj);
+                          canvas.renderAll();
+                        }
+                      }}
+                    >
+                      <div>
+                        <span className="font-medium">
+                          {obj.type === 'rect' ? 'Прямоугольник' :
+                           obj.type === 'circle' ? 'Круг' :
+                           obj.type === 'triangle' ? 'Треугольник' :
+                           obj.type === 'polygon' ? 'Многоугольник' :
+                           obj.type === 'i-text' ? `Текст: "${obj.text?.slice(0, 15)}${obj.text?.length > 15 ? '...' : ''}"` :
+                           obj.type === 'image' ? 'Изображение' :
+                           obj.type === 'path' ? 'Линия' : 
+                           obj.type}
+                        </span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 w-6 p-0" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteObject(obj);
+                        }}
+                      >
+                        <X size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                  {objects.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-2">
+                      Нет объектов на холсте
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Фоновое изображение:</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => backgroundInputRef.current?.click()}
+                  >
+                    <Upload size={16} className="mr-1" />
+                    Загрузить
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Text dialog */}
+      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Добавление текста</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <Input
+              placeholder="Введите текст"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              className="col-span-2"
+            />
+            <div className="flex items-center justify-between">
+              <span>Шрифт:</span>
+              <Select value={fontFamily} onValueChange={setFontFamily}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Выберите шрифт" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AVAILABLE_FONTS.map((font) => (
+                    <SelectItem 
+                      key={font.name} 
+                      value={font.family}
+                      style={{ fontFamily: font.family }}
+                    >
+                      {font.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Размер:</span>
+              <div className="flex items-center space-x-2">
+                <Slider 
+                  value={[fontSize]} 
+                  onValueChange={(values) => setFontSize(values[0])} 
+                  max={72} 
+                  min={8} 
+                  step={1}
+                  className="w-40"
+                />
+                <span className="w-8 text-center">{fontSize}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button type="button" onClick={addText}>
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Polygon dialog */}
+      <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Многоугольник</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="flex items-center justify-between">
+              <span>Количество сторон:</span>
+              <div className="flex items-center space-x-2">
+                <Slider 
+                  value={[polygonSides]} 
+                  onValueChange={(values) => setPolygonSides(values[0])} 
+                  max={12} 
+                  min={3} 
+                  step={1}
+                  className="w-40"
+                />
+                <span className="w-8 text-center">{polygonSides}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPolygonSidesDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button type="button" onClick={() => {
+              setPolygonSidesDialogOpen(false);
+              addShape('polygon');
+            }}>
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DrawingCanvas;
