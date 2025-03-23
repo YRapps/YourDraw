@@ -1,8 +1,7 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
 import { useToast } from "@/components/ui/use-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { 
   Circle as CircleIcon, 
@@ -20,7 +19,9 @@ import {
   Download,
   X,
   Image as ImageIcon,
-  Upload
+  Upload,
+  Home,
+  GridIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -41,6 +42,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 const AVAILABLE_FONTS = [
   { name: "Arial", family: "Arial, sans-serif", style: "normal" },
@@ -68,7 +70,17 @@ type Tool =
 
 type Menu = "tools" | "view" | "objects" | "none";
 
-const DrawingCanvas: React.FC = () => {
+interface DrawingCanvasProps {
+  drawingId: string;
+  initialData?: string | null;
+  onSave?: (canvasData: string, thumbnail: string) => void;
+}
+
+const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
+  drawingId, 
+  initialData, 
+  onSave 
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +104,7 @@ const DrawingCanvas: React.FC = () => {
   const [canvasHistory, setCanvasHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [customFonts, setCustomFonts] = useState<{name: string, family: string}[]>([]);
-  const { toast } = useToast();
+  const { toast: showToast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -127,7 +139,15 @@ const DrawingCanvas: React.FC = () => {
     fabricCanvas.on('selection:updated', handleSelectionCreated);
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
     
-    saveCanvasState();
+    // If we have initial data, load it
+    if (initialData) {
+      fabricCanvas.loadFromJSON(initialData, () => {
+        fabricCanvas.renderAll();
+        setObjects(fabricCanvas.getObjects());
+      });
+    } else {
+      saveCanvasState();
+    }
 
     return () => {
       fabricCanvas.dispose();
@@ -471,6 +491,13 @@ const DrawingCanvas: React.FC = () => {
       multiplier: 2,
     });
     
+    // If onSave callback is provided, use it (for browser storage)
+    if (onSave && drawingId) {
+      onSave(JSON.stringify(canvas.toJSON()), dataURL);
+      return;
+    }
+    
+    // Otherwise fall back to download
     const link = document.createElement('a');
     link.href = dataURL;
     link.download = `drawing-${new Date().toISOString().slice(0, 10)}.png`;
@@ -478,8 +505,10 @@ const DrawingCanvas: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     
-    // Перенаправляем на страницу сохранения
-    navigate('/save');
+    // Show save success toast
+    toast("Рисунок сохранен", {
+      description: "Ваш рисунок был скачан на устройство",
+    });
   };
 
   const bringToFront = () => {
@@ -594,6 +623,48 @@ const DrawingCanvas: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4">
+      <div className="fixed top-4 left-4 right-4 flex justify-between items-center z-10">
+        <div className="flex gap-2">
+          <Link to="/">
+            <Button 
+              variant="outline"
+              className="shadow-md bg-white"
+              title="На главную"
+            >
+              <Home size={20} />
+            </Button>
+          </Link>
+          
+          <Link to="/gallery">
+            <Button 
+              variant="outline"
+              className="shadow-md bg-white"
+              title="Галерея"
+            >
+              <GridIcon size={20} />
+            </Button>
+          </Link>
+          
+          <Button 
+            variant="outline"
+            className="shadow-md bg-white"
+            onClick={handleUndo}
+            title="Отменить"
+          >
+            <Undo size={20} />
+          </Button>
+        </div>
+        
+        <Button 
+          variant="default"
+          className="shadow-md"
+          onClick={saveAsPNG}
+        >
+          <Save size={20} className="mr-2" />
+          Сохранить
+        </Button>
+      </div>
+
       {/* Скрытое поле для загрузки изображений */}
       <input
         type="file"
@@ -621,26 +692,9 @@ const DrawingCanvas: React.FC = () => {
         className="hidden"
       />
 
-      <div className="canvas-container bg-white bg-opacity-80 rounded-2xl shadow-xl mb-20 overflow-hidden">
+      {/* Canvas Container */}
+      <div className="canvas-container bg-white bg-opacity-80 rounded-2xl shadow-xl mb-20 overflow-hidden mt-16">
         <canvas ref={canvasRef} className="canvas" />
-      </div>
-
-      <div className="fixed top-4 left-4 right-4 flex justify-between items-center">
-        <Button 
-          variant="outline"
-          className="shadow-md bg-white"
-          onClick={handleUndo}
-        >
-          <Undo size={20} />
-        </Button>
-        
-        <Button 
-          variant="outline"
-          className="shadow-md bg-white"
-          onClick={saveAsPNG}
-        >
-          <Download size={20} />
-        </Button>
       </div>
 
       {activeMenu !== "none" && (
@@ -863,375 +917,4 @@ const DrawingCanvas: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Загрузить шрифт:</span>
                   <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
-                    <Upload size={16} className="mr-2" /> Выбрать файл
-                  </Button>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Размер шрифта:</span>
-                  <span className="text-xs font-mono">{fontSize}px</span>
-                </div>
-                <Slider 
-                  value={[fontSize]} 
-                  onValueChange={(val) => setFontSize(val[0])} 
-                  min={10} 
-                  max={100} 
-                  step={1}
-                />
-
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Стиль шрифта:</span>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant={fontStyle === "normal" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFontStyle("normal")}
-                      className="w-10 h-8"
-                    >
-                      Аа
-                    </Button>
-                    <Button
-                      variant={fontStyle === "bold" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFontStyle("bold")}
-                      className="w-10 h-8 font-bold"
-                    >
-                      Аа
-                    </Button>
-                    <Button
-                      variant={fontStyle === "italic" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setFontStyle("italic")}
-                      className="w-10 h-8 italic"
-                    >
-                      Аа
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Фоновое изображение:</span>
-                <Button variant="outline" size="sm" onClick={() => backgroundInputRef.current?.click()}>
-                  <Upload size={16} className="mr-2" /> Загрузить
-                </Button>
-              </div>
-
-              <div className="flex justify-center">
-                <Button 
-                  variant="default" 
-                  onClick={applyChangesToSelectedObject}
-                  className="w-full"
-                >
-                  Применить изменения
-                </Button>
-              </div>
-
-              <div className="flex justify-center">
-                <Button 
-                  variant="outline" 
-                  onClick={updateText}
-                  className="w-full"
-                >
-                  Редактировать текст
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {activeMenu === "objects" && (
-            <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Объекты на холсте:</span>
-                <span className="text-xs text-muted-foreground">{objects.length} объектов</span>
-              </div>
-
-              {objects.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  Нет объектов на холсте
-                </div>
-              ) : (
-                objects.map((obj, index) => (
-                  <div 
-                    key={index}
-                    className="flex justify-between items-center p-2 rounded-lg bg-white shadow-sm"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 rounded-full bg-primary" />
-                      <span className="text-sm font-medium">
-                        {obj.type === 'circle' && 'Круг'}
-                        {obj.type === 'rect' && 'Прямоугольник'}
-                        {obj.type === 'triangle' && 'Треугольник'}
-                        {obj.type === 'polygon' && 'Многоугольник'}
-                        {obj.type === 'i-text' && `Текст: ${obj.text?.slice(0, 15)}${obj.text?.length > 15 ? '...' : ''}`}
-                        {obj.type === 'path' && 'Линия'}
-                        {obj.type === 'image' && 'Изображение'}
-                      </span>
-                    </div>
-                    <div className="flex space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onClick={() => {
-                          if (canvas) {
-                            canvas.setActiveObject(obj);
-                            canvas.renderAll();
-                          }
-                        }}
-                      >
-                        <MousePointer size={16} />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onClick={() => bringToFront()}
-                      >
-                        <Layers size={16} />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive"
-                        onClick={() => deleteObject(obj)}
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          viewBox="0 0 24 24" 
-                          fill="none" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          className="w-4 h-4"
-                        >
-                          <path d="M3 6h18"></path>
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                        </svg>
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              <div className="flex justify-between mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={bringToFront}
-                  className="flex-1 mr-2"
-                >
-                  На передний план
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={sendToBack}
-                  className="flex-1"
-                >
-                  На задний план
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {activeMenu === "none" && (
-        <div className="menu-container-collapsed z-10">
-          <Button 
-            variant="outline" 
-            className="shadow-md bg-white"
-            onClick={() => setActiveMenu("tools")}
-          >
-            Открыть меню
-          </Button>
-        </div>
-      )}
-
-      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Добавить текст</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Введите текст:</label>
-              <Input
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                placeholder="Ваш текст..."
-                className="w-full"
-              />
-            </div>
-            
-            <Tabs defaultValue="font">
-              <TabsList className="grid grid-cols-3">
-                <TabsTrigger value="font">Шрифт</TabsTrigger>
-                <TabsTrigger value="style">Стиль</TabsTrigger>
-                <TabsTrigger value="size">Размер</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="font" className="space-y-4 pt-2">
-                <Select 
-                  value={fontFamily} 
-                  onValueChange={setFontFamily}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите шрифт" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AVAILABLE_FONTS.map((font) => (
-                      <SelectItem 
-                        key={font.name} 
-                        value={font.family}
-                        style={{ fontFamily: font.family }}
-                      >
-                        {font.name}
-                      </SelectItem>
-                    ))}
-                    {customFonts.map((font) => (
-                      <SelectItem 
-                        key={font.name} 
-                        value={font.family}
-                        style={{ fontFamily: font.family }}
-                      >
-                        {font.name} (Custom)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </TabsContent>
-              
-              <TabsContent value="style" className="space-y-4 pt-2">
-                <div className="flex space-x-2 justify-around">
-                  <Button
-                    variant={fontStyle === "normal" ? "default" : "outline"}
-                    onClick={() => setFontStyle("normal")}
-                    className="flex-1"
-                  >
-                    Обычный
-                  </Button>
-                  <Button
-                    variant={fontStyle === "bold" ? "default" : "outline"}
-                    onClick={() => setFontStyle("bold")}
-                    className="flex-1 font-bold"
-                  >
-                    Жирный
-                  </Button>
-                  <Button
-                    variant={fontStyle === "italic" ? "default" : "outline"}
-                    onClick={() => setFontStyle("italic")}
-                    className="flex-1 italic"
-                  >
-                    Курсив
-                  </Button>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="size" className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Размер шрифта: </span>
-                    <span className="font-mono">{fontSize}px</span>
-                  </div>
-                  <Slider 
-                    value={[fontSize]} 
-                    onValueChange={(val) => setFontSize(val[0])} 
-                    min={10} 
-                    max={100} 
-                    step={1}
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
-            
-            <div className="border p-4 rounded-md text-center overflow-hidden" style={{ 
-              fontFamily, 
-              fontSize: `${fontSize}px`,
-              fontStyle: fontStyle === 'italic' ? 'italic' : 'normal',
-              fontWeight: fontStyle === 'bold' ? 'bold' : 'normal',
-              color: strokeColor
-            }}>
-              {textInput || 'Предпросмотр текста'}
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="ghost" 
-              onClick={() => setTextDialogOpen(false)}
-            >
-              Отмена
-            </Button>
-            <Button 
-              type="submit" 
-              onClick={addText}
-              disabled={!textInput.trim()}
-            >
-              Добавить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Выберите количество сторон</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Количество сторон: </span>
-                <span className="font-mono">{polygonSides}</span>
-              </div>
-              <Slider 
-                value={[polygonSides]} 
-                onValueChange={(val) => setPolygonSides(val[0])} 
-                min={3} 
-                max={12} 
-                step={1}
-              />
-            </div>
-            
-            <div className="border p-4 rounded-md flex justify-center">
-              <svg width="100" height="100" viewBox="-50 -50 100 100">
-                {Array.from({ length: polygonSides }).map((_, i) => {
-                  const angle = (i * 2 * Math.PI) / polygonSides;
-                  const x = 40 * Math.cos(angle);
-                  const y = 40 * Math.sin(angle);
-                  return i === 0 
-                    ? `M ${x} ${y}` 
-                    : `L ${x} ${y}`;
-                }).join(' ') + ' Z'}
-              </svg>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="ghost" 
-              onClick={() => setPolygonSidesDialogOpen(false)}
-            >
-              Отмена
-            </Button>
-            <Button 
-              type="submit" 
-              onClick={() => {
-                setPolygonSidesDialogOpen(false);
-                addShape('polygon');
-              }}
-            >
-              Добавить
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default DrawingCanvas;
+                    <Upload

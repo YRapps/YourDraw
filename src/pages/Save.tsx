@@ -2,7 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Grid } from "lucide-react";
 
 const Save = () => {
   return (
@@ -13,13 +13,20 @@ const Save = () => {
         </div>
         <h1 className="text-2xl font-bold mb-2">Сохранено</h1>
         <p className="text-slate-600 mb-6">
-          Ваша работа успешно сохранена на вашем устройстве
+          Ваша работа успешно сохранена в браузере
         </p>
-        <Link to="/">
-          <Button className="w-full">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Вернуться к рисованию
-          </Button>
-        </Link>
+        <div className="flex flex-col space-y-3">
+          <Link to="/gallery">
+            <Button className="w-full" variant="default">
+              <Grid className="mr-2 h-4 w-4" /> Просмотреть все рисунки
+            </Button>
+          </Link>
+          <Link to="/">
+            <Button className="w-full" variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Вернуться на главную
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );
