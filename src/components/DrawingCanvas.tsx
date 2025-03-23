@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from "react";
-import * as fabric from "fabric";
+import { fabric } from "fabric";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -110,6 +110,11 @@ const DrawingCanvas: React.FC = () => {
       selection: true,
     });
 
+    // Initialize the brush AFTER creating the canvas
+    fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+    fabricCanvas.freeDrawingBrush.color = strokeColor;
+    fabricCanvas.freeDrawingBrush.width = brushSize;
+
     setCanvas(fabricCanvas);
 
     fabricCanvas.on('object:added', () => saveCanvasState());
@@ -128,23 +133,20 @@ const DrawingCanvas: React.FC = () => {
 
   useEffect(() => {
     if (!canvas) return;
-    setObjects(canvas.getObjects());
-  }, [canvas, canvasHistory]);
-
-  useEffect(() => {
-    if (!canvas) return;
 
     canvas.isDrawingMode = activeTool === "brush" || activeTool === "eraser";
     canvas.selection = activeTool === "select";
 
-    if (activeTool === "brush") {
-      canvas.freeDrawingBrush.color = strokeColor;
-      canvas.freeDrawingBrush.width = brushSize;
-      canvas.freeDrawingBrush.globalCompositeOperation = "source-over";
-    } else if (activeTool === "eraser") {
-      canvas.freeDrawingBrush.color = "#ffffff";
-      canvas.freeDrawingBrush.width = brushSize * 2;
-      canvas.freeDrawingBrush.globalCompositeOperation = "destination-out";
+    if (canvas.freeDrawingBrush) {
+      if (activeTool === "brush") {
+        canvas.freeDrawingBrush.color = strokeColor;
+        canvas.freeDrawingBrush.width = brushSize;
+        canvas.freeDrawingBrush.globalCompositeOperation = "source-over";
+      } else if (activeTool === "eraser") {
+        canvas.freeDrawingBrush.color = "#ffffff";
+        canvas.freeDrawingBrush.width = brushSize * 2;
+        canvas.freeDrawingBrush.globalCompositeOperation = "destination-out";
+      }
     }
   }, [activeTool, strokeColor, brushSize, canvas]);
 

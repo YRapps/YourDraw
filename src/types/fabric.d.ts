@@ -6,11 +6,7 @@ declare module 'fabric' {
     width: number | undefined;
     height: number | undefined;
     backgroundColor: string;
-    freeDrawingBrush: {
-      color: string;
-      width: number;
-      globalCompositeOperation?: string;
-    };
+    freeDrawingBrush: PencilBrush;
     isDrawingMode: boolean;
     selection: boolean;
     
@@ -32,6 +28,13 @@ declare module 'fabric' {
     }): string;
     setBackgroundImage(image: any, callback: Function): Canvas;
     setBackgroundColor(color: string, callback?: Function): Canvas;
+  }
+
+  export class PencilBrush {
+    constructor(canvas: Canvas);
+    color: string;
+    width: number;
+    globalCompositeOperation?: string;
   }
 
   export class Circle {
