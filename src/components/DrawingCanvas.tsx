@@ -1,8 +1,8 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { 
   Circle as CircleIcon, 
   Square, 
@@ -114,6 +114,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
   const [menuVisible, setMenuVisible] = useState(true);
+  const [previewText, setPreviewText] = useState("Пример текста");
+  const isMobile = useIsMobile();
   const { toast: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -770,7 +772,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4">
       <div className="fixed top-4 left-4 right-4 flex justify-between items-center z-10">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {!menuVisible && (
             <Button 
               variant="outline"
@@ -826,8 +828,8 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           className="shadow-md"
           onClick={saveAsPNG}
         >
-          <Save size={20} className="mr-2" />
-          Сохранить
+          <Save size={20} className={cn("mr-2", isMobile && "mr-0")} />
+          {!isMobile && "Сохранить"}
         </Button>
       </div>
 
@@ -874,7 +876,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       </div>
 
       {menuVisible && (
-        <div className="menu-container z-10">
+        <div className={cn("menu-container z-10", isMobile ? "w-full" : "w-auto")}>
           <div className="flex justify-around mb-4 relative">
             <button
               className={cn("menu-tab", activeMenu === "tools" && "active")}
@@ -1064,7 +1066,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                     value={fontFamily} 
                     onValueChange={setFontFamily}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className={cn("w-32", isMobile && "w-24")}>
                       <SelectValue placeholder="Выберите шрифт" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1090,14 +1092,14 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   </Select>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Стиль шрифта:</span>
+                <div className="flex justify-between items-center flex-wrap">
+                  <span className="text-sm font-medium mb-2">Стиль шрифта:</span>
                   <div className="flex space-x-2">
                     <Button 
                       variant={fontStyle === "normal" ? "default" : "outline"} 
                       size="sm"
                       onClick={() => setFontStyle("normal")}
-                      className="min-w-[60px]"
+                      className={cn("min-w-[60px]", isMobile && "min-w-[40px] px-2")}
                     >
                       Обычный
                     </Button>
@@ -1105,7 +1107,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                       variant={fontStyle === "bold" ? "default" : "outline"} 
                       size="sm"
                       onClick={() => setFontStyle("bold")}
-                      className="min-w-[60px] font-bold"
+                      className={cn("min-w-[60px] font-bold", isMobile && "min-w-[40px] px-2")}
                     >
                       Жирный
                     </Button>
@@ -1113,15 +1115,15 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                       variant={fontStyle === "italic" ? "default" : "outline"} 
                       size="sm"
                       onClick={() => setFontStyle("italic")}
-                      className="min-w-[60px] italic"
+                      className={cn("min-w-[60px] italic", isMobile && "min-w-[40px] px-2")}
                     >
                       Курсив
                     </Button>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Размер шрифта:</span>
+                <div className="flex justify-between items-center flex-wrap">
+                  <span className="text-sm font-medium mb-2">Размер шрифта:</span>
                   <div className="flex items-center space-x-2">
                     <Slider 
                       value={[fontSize]} 
@@ -1129,10 +1131,34 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                       min={8} 
                       max={72} 
                       step={1}
-                      className="w-32"
+                      className={cn("w-32", isMobile && "w-24")}
                     />
                     <span className="text-xs font-mono w-10 text-center">{fontSize}px</span>
                   </div>
+                </div>
+
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm font-medium">Предпросмотр:</span>
+                </div>
+                <div 
+                  className="w-full bg-white border rounded-md p-3 mb-4 text-center"
+                  style={{ 
+                    fontFamily: fontFamily, 
+                    fontSize: `${fontSize}px`,
+                    fontStyle: fontStyle === "italic" ? "italic" : "normal",
+                    fontWeight: fontStyle === "bold" ? "bold" : "normal",
+                    color: strokeColor,
+                  }}
+                >
+                  {previewText}
+                </div>
+                <div className="w-full">
+                  <Input
+                    placeholder="Введите текст для предпросмотра"
+                    value={previewText}
+                    onChange={(e) => setPreviewText(e.target.value)}
+                    className="mb-4"
+                  />
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -1163,9 +1189,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
           {activeMenu === "objects" && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className={cn("flex justify-between items-center", isMobile && "flex-col items-start gap-2")}>
                 <span className="text-sm font-medium">Управление слоями:</span>
-                <div className="flex space-x-2">
+                <div className={cn("flex space-x-2", isMobile && "flex-wrap gap-2")}>
                   <Button 
                     variant="outline" 
                     size="sm" 
