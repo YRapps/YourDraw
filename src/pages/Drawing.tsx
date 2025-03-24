@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -10,6 +11,7 @@ const Drawing = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [drawingId, setDrawingId] = useState<string>("");
   const [drawingData, setDrawingData] = useState<string | null>(null);
+  const [drawingName, setDrawingName] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,12 +28,15 @@ const Drawing = () => {
 
     // Otherwise, load the existing drawing
     if (id) {
+      toast("Загрузка рисунка...");
       const drawing = getDrawingById(id);
       console.log("Retrieved drawing:", drawing ? "Found" : "Not found");
       
       if (drawing) {
         setDrawingId(drawing.id);
-        // Check if the drawing data might be a YRD format (which is a JSON object containing canvasJSON)
+        setDrawingName(drawing.name);
+        
+        // Check if the drawing data might be a YRD format
         try {
           const parsedData = JSON.parse(drawing.data);
           if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
@@ -66,7 +71,7 @@ const Drawing = () => {
     
     // Create a name based on date if it's a new drawing
     const now = new Date();
-    const name = existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
+    const name = drawingName || existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,
@@ -91,7 +96,7 @@ const Drawing = () => {
     
     // Get existing drawing to preserve its name and creation date
     const existingDrawing = getDrawingById(drawingId);
-    const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
+    const name = drawingName || existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -44,19 +43,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import SaveOptions, { SaveOptions as SaveOptionsType } from "./SaveOptions";
-import * as fabric from "fabric";
-
-const AVAILABLE_FONTS = [
-  { name: "Arial", family: "Arial, sans-serif", style: "normal" },
-  { name: "Comfortaa", family: "Comfortaa, cursive", style: "normal" },
-  { name: "Shantell Sans", family: "Shantell Sans, cursive", style: "normal" },
-  { name: "Caveat", family: "Caveat, cursive", style: "normal" },
-  { name: "Tiny5", family: "Tiny5, cursive", style: "normal" },
-  { name: "Press Start 2P", family: "Press Start 2P, cursive", style: "normal" },
-  { name: "Prosto One", family: "Prosto One, cursive", style: "normal" },
-  { name: "Great Vibes", family: "Great Vibes, cursive", style: "normal" },
-  { name: "Marck Script", family: "Marck Script, cursive", style: "normal" }
-];
+import { Canvas, IText, PencilBrush, Circle, Triangle, Rect, Polygon, Image } from "fabric";
 
 type Tool = 
   | "select" 
@@ -79,6 +66,18 @@ interface DrawingCanvasProps {
   onAutoSave?: (canvasData: string, thumbnail: string) => void;
 }
 
+const AVAILABLE_FONTS = [
+  { name: "Arial", family: "Arial, sans-serif", style: "normal" },
+  { name: "Comfortaa", family: "Comfortaa, cursive", style: "normal" },
+  { name: "Shantell Sans", family: "Shantell Sans, cursive", style: "normal" },
+  { name: "Caveat", family: "Caveat, cursive", style: "normal" },
+  { name: "Tiny5", family: "Tiny5, cursive", style: "normal" },
+  { name: "Press Start 2P", family: "Press Start 2P, cursive", style: "normal" },
+  { name: "Prosto One", family: "Prosto One, cursive", style: "normal" },
+  { name: "Great Vibes", family: "Great Vibes, cursive", style: "normal" },
+  { name: "Marck Script", family: "Marck Script, cursive", style: "normal" }
+];
+
 const DrawingCanvas: React.FC<DrawingCanvasProps> = ({ 
   drawingId, 
   initialData, 
@@ -90,7 +89,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
   const yrdFileInputRef = useRef<HTMLInputElement>(null);
-  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
+  const [canvas, setCanvas] = useState<Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -111,6 +110,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [customFonts, setCustomFonts] = useState<{name: string, family: string}[]>([]);
   const [saveOptionsOpen, setSaveOptionsOpen] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
   const { toast: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -139,7 +139,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+    const fabricCanvas = new Canvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'white',
@@ -147,15 +147,17 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       selection: true,
     });
 
-    fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(fabricCanvas);
+    fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
     fabricCanvas.freeDrawingBrush.color = strokeColor;
     fabricCanvas.freeDrawingBrush.width = brushSize;
 
     setCanvas(fabricCanvas);
 
     fabricCanvas.on('object:added', () => {
-      saveCanvasState();
-      triggerAutoSave();
+      if (isInitialDataLoaded) {
+        saveCanvasState();
+        triggerAutoSave();
+      }
     });
     fabricCanvas.on('object:modified', () => {
       saveCanvasState();
@@ -172,38 +174,45 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     if (initialData) {
       console.log("Loading initial drawing data");
       try {
-        // Try to detect if the data is in YRD format
         const parsedData = JSON.parse(initialData);
         if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
-          // If it's YRD format, extract the canvasJSON part
           console.log("Loading YRD format drawing");
-          fabricCanvas.loadFromJSON(parsedData.canvasJSON, () => {
-            fabricCanvas.renderAll();
-            setObjects(fabricCanvas.getObjects());
-            console.log("Canvas loaded from YRD format successfully");
-          });
+          setTimeout(() => {
+            fabricCanvas.loadFromJSON(parsedData.canvasJSON, () => {
+              fabricCanvas.renderAll();
+              setObjects(fabricCanvas.getObjects());
+              console.log("Canvas loaded from YRD format successfully");
+              setIsInitialDataLoaded(true);
+              toast("Рисунок успешно загружен");
+            });
+          }, 100);
         } else {
-          // Regular canvas JSON data
           fabricCanvas.loadFromJSON(initialData, () => {
             fabricCanvas.renderAll();
             setObjects(fabricCanvas.getObjects());
             console.log("Canvas loaded from JSON successfully");
+            setIsInitialDataLoaded(true);
+            toast("Рисунок успешно загружен");
           });
         }
       } catch (error) {
         console.error("Error loading canvas data:", error);
-        // If parsing fails, try loading as regular JSON anyway
         try {
           fabricCanvas.loadFromJSON(initialData, () => {
             fabricCanvas.renderAll();
             setObjects(fabricCanvas.getObjects());
+            setIsInitialDataLoaded(true);
+            toast("Рисунок успешно загружен");
           });
         } catch (e) {
           console.error("Failed to load canvas data even as regular JSON:", e);
+          toast.error("Ошибка при загрузке рисунка");
+          setIsInitialDataLoaded(true);
         }
       }
     } else {
       saveCanvasState();
+      setIsInitialDataLoaded(true);
     }
 
     return () => {
@@ -302,7 +311,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
     switch (shape) {
       case 'circle':
-        object = new fabric.Circle({
+        object = new Circle({
           radius: 50,
           left: canvas.width! / 2 - 50,
           top: canvas.height! / 2 - 50,
@@ -313,7 +322,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         });
         break;
       case 'square':
-        object = new fabric.Rect({
+        object = new Rect({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -327,7 +336,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         });
         break;
       case 'triangle':
-        object = new fabric.Triangle({
+        object = new Triangle({
           width: 100,
           height: 100,
           left: canvas.width! / 2 - 50,
@@ -350,7 +359,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           points.push({ x, y });
         }
         
-        object = new fabric.Polygon(points, {
+        object = new Polygon(points, {
           left: canvas.width! / 2 - radius,
           top: canvas.height! / 2 - radius,
           fill: fillColor,
@@ -372,7 +381,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const addText = () => {
     if (!canvas || !textInput) return;
 
-    const textObject = new fabric.IText(textInput, {
+    const textObject = new IText(textInput, {
       left: canvas.width! / 2 - 100,
       top: canvas.height! / 2 - 20,
       width: 200,
@@ -401,7 +410,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const imgElement = document.createElement("img");
       imgElement.src = e.target?.result as string;
       imgElement.onload = () => {
-        const fabricImage = new fabric.Image(imgElement, {
+        const fabricImage = new Image(imgElement, {
           left: canvas.width! / 2 - imgElement.width / 4,
           top: canvas.height! / 2 - imgElement.height / 4,
           scaleX: 0.5,
@@ -427,7 +436,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       const imgElement = document.createElement("img");
       imgElement.src = e.target?.result as string;
       imgElement.onload = () => {
-        canvas.setBackgroundImage(new fabric.Image(imgElement), () => {
+        canvas.setBackgroundImage(new Image(imgElement), () => {
           canvas.renderAll();
           saveCanvasState();
           toast("Фоновое изображение успешно установлено");
@@ -703,23 +712,27 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
       return;
     }
     
+    toast("Загрузка рисунка...");
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const yrdData = JSON.parse(e.target?.result as string);
         if (yrdData.type === "yourDrawing" && yrdData.canvasJSON) {
-          canvas.loadFromJSON(yrdData.canvasJSON, () => {
-            canvas.renderAll();
-            setObjects(canvas.getObjects());
-            toast("Рисунок .yrd успешно импортирован");
-            saveCanvasState();
-          });
+          canvas.clear();
+          setTimeout(() => {
+            canvas.loadFromJSON(yrdData.canvasJSON, () => {
+              canvas.renderAll();
+              setObjects(canvas.getObjects());
+              toast("Рисунок .yrd успешно импортирован");
+              saveCanvasState();
+            });
+          }, 100);
         } else {
           toast("Некорректный формат .yrd файла");
         }
       } catch (error) {
         console.error("Error importing .yrd file:", error);
-        toast("Ошибка при импорте файла");
+        toast.error("Ошибка при импорте файла");
       }
     };
     reader.readAsText(file);
