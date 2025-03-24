@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -170,11 +171,37 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     if (initialData) {
       console.log("Loading initial drawing data");
-      fabricCanvas.loadFromJSON(initialData, () => {
-        fabricCanvas.renderAll();
-        setObjects(fabricCanvas.getObjects());
-        console.log("Canvas loaded from JSON successfully");
-      });
+      try {
+        // Try to detect if the data is in YRD format
+        const parsedData = JSON.parse(initialData);
+        if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
+          // If it's YRD format, extract the canvasJSON part
+          console.log("Loading YRD format drawing");
+          fabricCanvas.loadFromJSON(parsedData.canvasJSON, () => {
+            fabricCanvas.renderAll();
+            setObjects(fabricCanvas.getObjects());
+            console.log("Canvas loaded from YRD format successfully");
+          });
+        } else {
+          // Regular canvas JSON data
+          fabricCanvas.loadFromJSON(initialData, () => {
+            fabricCanvas.renderAll();
+            setObjects(fabricCanvas.getObjects());
+            console.log("Canvas loaded from JSON successfully");
+          });
+        }
+      } catch (error) {
+        console.error("Error loading canvas data:", error);
+        // If parsing fails, try loading as regular JSON anyway
+        try {
+          fabricCanvas.loadFromJSON(initialData, () => {
+            fabricCanvas.renderAll();
+            setObjects(fabricCanvas.getObjects());
+          });
+        } catch (e) {
+          console.error("Failed to load canvas data even as regular JSON:", e);
+        }
+      }
     } else {
       saveCanvasState();
     }
@@ -403,9 +430,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         canvas.setBackgroundImage(new fabric.Image(imgElement), () => {
           canvas.renderAll();
           saveCanvasState();
-          toast({
-            description: "Фоновое изображение успешно установлено"
-          });
+          toast("Фоновое изображение успешно установлено");
         });
       };
     };
@@ -434,18 +459,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         activeObject.set('fill', fillColor);
         canvas.renderAll();
         saveCanvasState();
-        toast({
-          title: "Заливка",
-          description: "Объект заполнен выбранным цветом",
-        });
+        toast("Объект заполнен выбранным цветом");
       } else {
         canvas.backgroundColor = fillColor;
         canvas.renderAll();
         saveCanvasState();
-        toast({
-          title: "Заливка",
-          description: "Фон заполнен выбранным цветом",
-        });
+        toast("Фон заполнен выбранным цветом");
       }
       return;
     }
@@ -549,9 +568,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         
-        toast({
-          description: "Ваш рисунок был скачан в формате .yrd"
-        });
+        toast("Ваш рисунок был скачан в формате .yrd");
       } else if (onSave) {
         const thumbnailDataURL = canvas.toDataURL({
           format: 'png',
@@ -578,9 +595,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         link.click();
         document.body.removeChild(link);
         
-        toast({
-          description: `Ваш рисунок был скачан в формате .${options.format}`
-        });
+        toast(`Ваш рисунок был скачан в формате .${options.format}`);
       } else if (onSave) {
         onSave(JSON.stringify(canvas.toJSON()), dataURL);
       }
@@ -672,10 +687,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     setCustomFonts(prev => [...prev, { name: fontName, family: `${fontName}, sans-serif` }]);
     
-    toast({
-      title: "Шрифт загружен",
-      description: `Шрифт ${fontName} успешно добавлен и доступен для использования`,
-    });
+    toast(`Шрифт ${fontName} успешно добавлен и доступен для использования`);
     
     e.target.value = '';
   };
@@ -686,9 +698,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     const file = files[0];
     if (!file.name.endsWith('.yrd')) {
-      toast({
-        description: "Выберите файл в формате .yrd"
-      });
+      toast("Выберите файл в формате .yrd");
       e.target.value = '';
       return;
     }
@@ -701,21 +711,15 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           canvas.loadFromJSON(yrdData.canvasJSON, () => {
             canvas.renderAll();
             setObjects(canvas.getObjects());
-            toast({
-              description: "Рисунок .yrd успешно импортирован"
-            });
+            toast("Рисунок .yrd успешно импортирован");
             saveCanvasState();
           });
         } else {
-          toast({
-            description: "Некорректный формат .yrd файла"
-          });
+          toast("Некорректный формат .yrd файла");
         }
       } catch (error) {
         console.error("Error importing .yrd file:", error);
-        toast({
-          description: "Ошибка при импорте файла"
-        });
+        toast("Ошибка при импорте файла");
       }
     };
     reader.readAsText(file);

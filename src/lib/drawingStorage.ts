@@ -109,7 +109,7 @@ export const importDrawingFromYRD = (yrdContent: string): StoredDrawing | null =
     const newDrawing: StoredDrawing = {
       id: drawingId,
       name: `Импортированный рисунок ${new Date().toLocaleDateString('ru-RU')}`,
-      data: JSON.stringify(yrdData),
+      data: yrdContent, // Store the complete YRD data
       thumbnail: "", // Will be generated when the drawing is first rendered
       createdAt: yrdData.metadata?.createdAt || now,
       updatedAt: now
