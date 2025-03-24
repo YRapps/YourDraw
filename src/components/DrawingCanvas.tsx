@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -1310,7 +1311,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   <SelectValue placeholder="Выберите шрифт" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_FONTS.map((font) => (
+                  {AVAILABLE_FONTS.concat(customFonts).map((font) => (
                     <SelectItem 
                       key={font.name} 
                       value={font.family}
@@ -1334,6 +1335,50 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   className="w-40"
                 />
                 <span className="w-8 text-center">{fontSize}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Стиль:</span>
+              <div className="flex space-x-2">
+                <Button 
+                  variant={fontStyle === "normal" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setFontStyle("normal")}
+                  className="min-w-[60px]"
+                >
+                  Обычный
+                </Button>
+                <Button 
+                  variant={fontStyle === "bold" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setFontStyle("bold")}
+                  className="min-w-[60px] font-bold"
+                >
+                  Жирный
+                </Button>
+                <Button 
+                  variant={fontStyle === "italic" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setFontStyle("italic")}
+                  className="min-w-[60px] italic"
+                >
+                  Курсив
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <span>Предпросмотр:</span>
+              <div 
+                className="w-full bg-white border rounded-md p-3 text-center"
+                style={{ 
+                  fontFamily: fontFamily, 
+                  fontSize: `${fontSize}px`,
+                  fontStyle: fontStyle === "italic" ? "italic" : "normal",
+                  fontWeight: fontStyle === "bold" ? "bold" : "normal",
+                  color: strokeColor,
+                }}
+              >
+                {textInput || "Пример текста"}
               </div>
             </div>
           </div>
