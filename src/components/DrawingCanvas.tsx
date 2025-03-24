@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -21,7 +22,8 @@ import {
   Upload,
   Home,
   GridIcon,
-  Trash2
+  Trash2,
+  Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -43,7 +45,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import SaveOptions, { SaveOptions as SaveOptionsType } from "./SaveOptions";
-import { Canvas, IText, PencilBrush, Circle, Triangle, Rect, Polygon, Image } from "fabric";
+import { Canvas as FabricCanvas, IText, PencilBrush, Circle, Triangle, Rect, Polygon, Image } from "fabric";
 
 type Tool = 
   | "select" 
@@ -89,7 +91,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
   const yrdFileInputRef = useRef<HTMLInputElement>(null);
-  const [canvas, setCanvas] = useState<Canvas | null>(null);
+  const [canvas, setCanvas] = useState<FabricCanvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -111,6 +113,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [saveOptionsOpen, setSaveOptionsOpen] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(true);
   const { toast: showToast } = useToast();
   const navigate = useNavigate();
 
@@ -139,7 +142,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     const canvasHeight = viewportHeight * 0.8;
     const canvasWidth = window.innerWidth * 0.95;
 
-    const fabricCanvas = new Canvas(canvasRef.current, {
+    const fabricCanvas = new FabricCanvas(canvasRef.current, {
       width: canvasWidth,
       height: canvasHeight,
       backgroundColor: 'white',
@@ -183,16 +186,16 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               setObjects(fabricCanvas.getObjects());
               console.log("Canvas loaded from YRD format successfully");
               setIsInitialDataLoaded(true);
-              toast("Рисунок успешно загружен");
+              toast.success("Рисунок успешно загружен");
             });
-          }, 100);
+          }, 300);
         } else {
           fabricCanvas.loadFromJSON(initialData, () => {
             fabricCanvas.renderAll();
             setObjects(fabricCanvas.getObjects());
             console.log("Canvas loaded from JSON successfully");
             setIsInitialDataLoaded(true);
-            toast("Рисунок успешно загружен");
+            toast.success("Рисунок успешно загружен");
           });
         }
       } catch (error) {
@@ -202,7 +205,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             fabricCanvas.renderAll();
             setObjects(fabricCanvas.getObjects());
             setIsInitialDataLoaded(true);
-            toast("Рисунок успешно загружен");
+            toast.success("Рисунок успешно загружен");
           });
         } catch (e) {
           console.error("Failed to load canvas data even as regular JSON:", e);
@@ -439,7 +442,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         canvas.setBackgroundImage(new Image(imgElement), () => {
           canvas.renderAll();
           saveCanvasState();
-          toast("Фоновое изображение успешно установлено");
+          toast.success("Фоновое изображение успешно установлено");
         });
       };
     };
@@ -468,12 +471,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         activeObject.set('fill', fillColor);
         canvas.renderAll();
         saveCanvasState();
-        toast("Объект заполнен выбранным цветом");
+        toast.success("Объект заполнен выбранным цветом");
       } else {
         canvas.backgroundColor = fillColor;
         canvas.renderAll();
         saveCanvasState();
-        toast("Фон заполнен выбранным цветом");
+        toast.success("Фон заполнен выбранным цветом");
       }
       return;
     }
@@ -516,6 +519,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     canvas.renderAll();
     saveCanvasState();
+    toast.success("Изменения применены");
   };
 
   const updateText = () => {
@@ -577,7 +581,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         
-        toast("Ваш рисунок был скачан в формате .yrd");
+        toast.success("Ваш рисунок был скачан в формате .yrd");
       } else if (onSave) {
         const thumbnailDataURL = canvas.toDataURL({
           format: 'png',
@@ -604,7 +608,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         link.click();
         document.body.removeChild(link);
         
-        toast(`Ваш рисунок был скачан в формате .${options.format}`);
+        toast.success(`Ваш рисунок был скачан в формате .${options.format}`);
       } else if (onSave) {
         onSave(JSON.stringify(canvas.toJSON()), dataURL);
       }
@@ -653,6 +657,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
   const closeMenu = () => {
     setActiveMenu("none");
+    setMenuVisible(false);
+  };
+
+  const openMenu = () => {
+    setActiveMenu("tools");
+    setMenuVisible(true);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -696,7 +706,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     setCustomFonts(prev => [...prev, { name: fontName, family: `${fontName}, sans-serif` }]);
     
-    toast(`Шрифт ${fontName} успешно добавлен и доступен для использования`);
+    toast.success(`Шрифт ${fontName} успешно добавлен и доступен для использования`);
     
     e.target.value = '';
   };
@@ -707,7 +717,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     const file = files[0];
     if (!file.name.endsWith('.yrd')) {
-      toast("Выберите файл в формате .yrd");
+      toast.error("Выберите файл в формате .yrd");
       e.target.value = '';
       return;
     }
@@ -723,12 +733,12 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             canvas.loadFromJSON(yrdData.canvasJSON, () => {
               canvas.renderAll();
               setObjects(canvas.getObjects());
-              toast("Рисунок .yrd успешно импортирован");
+              toast.success("Рисунок .yrd успешно импортирован");
               saveCanvasState();
             });
-          }, 100);
+          }, 300);
         } else {
-          toast("Некорректный формат .yrd файла");
+          toast.error("Некорректный формат .yrd файла");
         }
       } catch (error) {
         console.error("Error importing .yrd file:", error);
@@ -761,6 +771,17 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-100 p-4">
       <div className="fixed top-4 left-4 right-4 flex justify-between items-center z-10">
         <div className="flex gap-2">
+          {!menuVisible && (
+            <Button 
+              variant="outline"
+              className="shadow-md bg-white"
+              onClick={openMenu}
+              aria-label="Открыть меню"
+            >
+              <Menu size={20} />
+            </Button>
+          )}
+          
           <Link to="/">
             <Button 
               variant="outline"
@@ -852,7 +873,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         <canvas ref={canvasRef} className="canvas" />
       </div>
 
-      {activeMenu !== "none" && (
+      {menuVisible && (
         <div className="menu-container z-10">
           <div className="flex justify-around mb-4 relative">
             <button
@@ -1070,12 +1091,72 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                 </div>
 
                 <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Стиль шрифта:</span>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant={fontStyle === "normal" ? "default" : "outline"} 
+                      size="sm"
+                      onClick={() => setFontStyle("normal")}
+                      className="min-w-[60px]"
+                    >
+                      Обычный
+                    </Button>
+                    <Button 
+                      variant={fontStyle === "bold" ? "default" : "outline"} 
+                      size="sm"
+                      onClick={() => setFontStyle("bold")}
+                      className="min-w-[60px] font-bold"
+                    >
+                      Жирный
+                    </Button>
+                    <Button 
+                      variant={fontStyle === "italic" ? "default" : "outline"} 
+                      size="sm"
+                      onClick={() => setFontStyle("italic")}
+                      className="min-w-[60px] italic"
+                    >
+                      Курсив
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Размер шрифта:</span>
+                  <div className="flex items-center space-x-2">
+                    <Slider 
+                      value={[fontSize]} 
+                      onValueChange={(val) => setFontSize(val[0])} 
+                      min={8} 
+                      max={72} 
+                      step={1}
+                      className="w-32"
+                    />
+                    <span className="text-xs font-mono w-10 text-center">{fontSize}px</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Загрузить шрифт:</span>
                   <Button variant="outline" size="sm" onClick={() => fontFileInputRef.current?.click()}>
-                    <Upload size={20} className="mr-2" />
+                    <Upload size={16} className="mr-2" />
                     Загрузить
                   </Button>
                 </div>
+
+                <Button
+                  className="w-full mt-2"
+                  onClick={applyChangesToSelectedObject}
+                >
+                  Применить изменения
+                </Button>
+
+                <Button
+                  className="w-full mt-2"
+                  variant="outline"
+                  onClick={updateText}
+                >
+                  Изменить текст
+                </Button>
               </div>
             </div>
           )}

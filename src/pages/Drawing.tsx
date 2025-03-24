@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -35,23 +34,9 @@ const Drawing = () => {
       if (drawing) {
         setDrawingId(drawing.id);
         setDrawingName(drawing.name);
-        
-        // Check if the drawing data might be a YRD format
-        try {
-          const parsedData = JSON.parse(drawing.data);
-          if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
-            // If it's YRD format, extract the canvasJSON part
-            console.log("Loading YRD format drawing");
-            setDrawingData(drawing.data); // Keep the original YRD format
-          } else {
-            // Regular canvas JSON data
-            setDrawingData(drawing.data);
-          }
-        } catch (e) {
-          // If parsing fails, it's regular JSON canvas data
-          setDrawingData(drawing.data);
-        }
+        setDrawingData(drawing.data);
         setIsLoading(false);
+        toast.success("Рисунок загружен");
       } else {
         toast.error("Рисунок не найден", {
           description: "Запрошенный рисунок не существует или был удален"
