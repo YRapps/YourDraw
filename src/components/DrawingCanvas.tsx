@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate, Link } from "react-router-dom";
@@ -1311,13 +1310,22 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   <SelectValue placeholder="Выберите шрифт" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_FONTS.concat(customFonts).map((font) => (
+                  {AVAILABLE_FONTS.map((font) => (
                     <SelectItem 
                       key={font.name} 
                       value={font.family}
                       style={{ fontFamily: font.family }}
                     >
                       {font.name}
+                    </SelectItem>
+                  ))}
+                  {customFonts.map((font) => (
+                    <SelectItem 
+                      key={font.name} 
+                      value={font.family}
+                      style={{ fontFamily: font.family }}
+                    >
+                      {font.name} (Custom)
                     </SelectItem>
                   ))}
                 </SelectContent>
