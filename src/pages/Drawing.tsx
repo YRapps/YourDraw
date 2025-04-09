@@ -10,6 +10,7 @@ const Drawing = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [drawingId, setDrawingId] = useState<string>("");
   const [drawingData, setDrawingData] = useState<string | null>(null);
+  const [drawingName, setDrawingName] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,13 +27,16 @@ const Drawing = () => {
 
     // Otherwise, load the existing drawing
     if (id) {
+      toast("Загрузка рисунка...");
       const drawing = getDrawingById(id);
       console.log("Retrieved drawing:", drawing ? "Found" : "Not found");
       
       if (drawing) {
         setDrawingId(drawing.id);
+        setDrawingName(drawing.name);
         setDrawingData(drawing.data);
         setIsLoading(false);
+        toast.success("Рисунок загружен");
       } else {
         toast.error("Рисунок не найден", {
           description: "Запрошенный рисунок не существует или был удален"
@@ -52,7 +56,7 @@ const Drawing = () => {
     
     // Create a name based on date if it's a new drawing
     const now = new Date();
-    const name = existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
+    const name = drawingName || existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,
@@ -75,9 +79,9 @@ const Drawing = () => {
     
     console.log("Auto-saving drawing:", drawingId);
     
-    // Get existing drawing to preserve its name
+    // Get existing drawing to preserve its name and creation date
     const existingDrawing = getDrawingById(drawingId);
-    const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
+    const name = drawingName || existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,
