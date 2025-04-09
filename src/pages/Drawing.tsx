@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import DrawingCanvas from "@/components/DrawingCanvas";
@@ -10,7 +11,6 @@ const Drawing = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [drawingId, setDrawingId] = useState<string>("");
   const [drawingData, setDrawingData] = useState<string | null>(null);
-  const [drawingName, setDrawingName] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,16 +27,27 @@ const Drawing = () => {
 
     // Otherwise, load the existing drawing
     if (id) {
-      toast("Загрузка рисунка...");
       const drawing = getDrawingById(id);
       console.log("Retrieved drawing:", drawing ? "Found" : "Not found");
       
       if (drawing) {
         setDrawingId(drawing.id);
-        setDrawingName(drawing.name);
-        setDrawingData(drawing.data);
+        // Check if the drawing data might be a YRD format (which is a JSON object containing canvasJSON)
+        try {
+          const parsedData = JSON.parse(drawing.data);
+          if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
+            // If it's YRD format, extract the canvasJSON part
+            console.log("Loading YRD format drawing");
+            setDrawingData(JSON.stringify(parsedData.canvasJSON));
+          } else {
+            // Regular canvas JSON data
+            setDrawingData(drawing.data);
+          }
+        } catch (e) {
+          // If parsing fails, it's regular JSON canvas data
+          setDrawingData(drawing.data);
+        }
         setIsLoading(false);
-        toast.success("Рисунок загружен");
       } else {
         toast.error("Рисунок не найден", {
           description: "Запрошенный рисунок не существует или был удален"
@@ -56,7 +67,7 @@ const Drawing = () => {
     
     // Create a name based on date if it's a new drawing
     const now = new Date();
-    const name = drawingName || existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
+    const name = existingDrawing?.name || `Рисунок от ${now.toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,
@@ -81,7 +92,7 @@ const Drawing = () => {
     
     // Get existing drawing to preserve its name and creation date
     const existingDrawing = getDrawingById(drawingId);
-    const name = drawingName || existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
+    const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
     
     saveDrawing({
       id: drawingId,

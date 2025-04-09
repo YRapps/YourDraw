@@ -64,26 +64,7 @@ export const saveDrawing = (drawing: Omit<StoredDrawing, 'updatedAt'>): StoredDr
     drawings.push(updatedDrawing);
   }
   
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(drawings));
-  } catch (error) {
-    console.error('Error saving drawing to localStorage:', error);
-    // Try to remove thumbnails to save space if storage is full
-    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      const compressedDrawings = drawings.map(d => ({
-        ...d,
-        thumbnail: d.id === drawing.id ? d.thumbnail : '',  // Keep only current thumbnail
-      }));
-      
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(compressedDrawings));
-        console.log('Saved drawings with compressed thumbnails due to storage limitations');
-      } catch (e) {
-        console.error('Still unable to save drawings after compression:', e);
-      }
-    }
-  }
-  
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(drawings));
   return updatedDrawing;
 };
 
@@ -128,7 +109,7 @@ export const importDrawingFromYRD = (yrdContent: string): StoredDrawing | null =
     const newDrawing: StoredDrawing = {
       id: drawingId,
       name: `Импортированный рисунок ${new Date().toLocaleDateString('ru-RU')}`,
-      data: yrdContent, // Store the complete YRD data
+      data: JSON.stringify(yrdData),
       thumbnail: "", // Will be generated when the drawing is first rendered
       createdAt: yrdData.metadata?.createdAt || now,
       updatedAt: now
