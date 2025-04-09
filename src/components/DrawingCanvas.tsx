@@ -23,7 +23,9 @@ import {
   Home,
   GridIcon,
   Trash2,
-  Menu
+  Menu,
+  Eye,
+  Type
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -60,6 +62,7 @@ type Tool =
   | "image";
 
 type Menu = "tools" | "view" | "objects" | "none";
+type ViewSubMenu = "main" | "view" | "text";
 
 interface DrawingCanvasProps {
   drawingId: string;
@@ -94,6 +97,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const [canvas, setCanvas] = useState<FabricCanvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
+  const [viewSubMenu, setViewSubMenu] = useState<ViewSubMenu>("main");
   const [strokeColor, setStrokeColor] = useState("#000000");
   const [fillColor, setFillColor] = useState("rgba(0, 0, 0, 0)");
   const [brushSize, setBrushSize] = useState(5);
@@ -886,7 +890,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             </button>
             <button
               className={cn("menu-tab", activeMenu === "view" && "active")}
-              onClick={() => setActiveMenu("view")}
+              onClick={() => {
+                setActiveMenu("view");
+                setViewSubMenu("main");
+              }}
             >
               Вид
             </button>
@@ -921,11 +928,46 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
             </div>
           )}
 
-          {activeMenu === "view" && (
+          {activeMenu === "view" && viewSubMenu === "main" && (
+            <div className="flex flex-col space-y-4">
+              <Button 
+                variant="outline" 
+                className="flex justify-between items-center w-full py-6 text-lg"
+                onClick={() => setViewSubMenu("view")}
+              >
+                <div className="flex items-center">
+                  <Eye className="mr-2" size={24} />
+                  Параметры вида
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="flex justify-between items-center w-full py-6 text-lg"
+                onClick={() => setViewSubMenu("text")}
+              >
+                <div className="flex items-center">
+                  <Type className="mr-2" size={24} />
+                  Параметры текста
+                </div>
+              </Button>
+            </div>
+          )}
+
+          {activeMenu === "view" && viewSubMenu === "view" && (
             <div className="space-y-4">
+              <Button 
+                variant="outline" 
+                className="flex items-center mb-4"
+                onClick={() => setViewSubMenu("main")}
+              >
+                <X size={16} className="mr-2" />
+                Назад
+              </Button>
+              
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Цвет кисти:</span>
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 flex-wrap justify-end">
                   {colorSwatches.slice(0, 5).map((color) => (
                     <div
                       key={color}
@@ -968,7 +1010,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Цвет заливки:</span>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 flex-wrap justify-end">
                     <div 
                       className={cn("color-swatch", fillColor === "rgba(0, 0, 0, 0)" && "active")}
                       style={{ 
@@ -1058,7 +1100,27 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   step={1}
                 />
               </div>
+              
+              <Button
+                className="w-full mt-2"
+                onClick={applyChangesToSelectedObject}
+              >
+                Применить изменения
+              </Button>
+            </div>
+          )}
 
+          {activeMenu === "view" && viewSubMenu === "text" && (
+            <div className="space-y-4">
+              <Button 
+                variant="outline" 
+                className="flex items-center mb-4"
+                onClick={() => setViewSubMenu("main")}
+              >
+                <X size={16} className="mr-2" />
+                Назад
+              </Button>
+              
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Шрифт:</span>
@@ -1135,30 +1197,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                     />
                     <span className="text-xs font-mono w-10 text-center">{fontSize}px</span>
                   </div>
-                </div>
-
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-sm font-medium">Предпросмотр:</span>
-                </div>
-                <div 
-                  className="w-full bg-white border rounded-md p-3 mb-4 text-center"
-                  style={{ 
-                    fontFamily: fontFamily, 
-                    fontSize: `${fontSize}px`,
-                    fontStyle: fontStyle === "italic" ? "italic" : "normal",
-                    fontWeight: fontStyle === "bold" ? "bold" : "normal",
-                    color: strokeColor,
-                  }}
-                >
-                  {previewText}
-                </div>
-                <div className="w-full">
-                  <Input
-                    placeholder="Введите текст для предпросмотра"
-                    value={previewText}
-                    onChange={(e) => setPreviewText(e.target.value)}
-                    className="mb-4"
-                  />
                 </div>
 
                 <div className="flex justify-between items-center">
@@ -1290,9 +1328,9 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         </div>
       )}
 
-      {/* Text dialog */}
+      {/* Text dialog - optimized for mobile */}
       <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={cn("sm:max-w-md", isMobile && "w-[90%] max-w-[90%]")}>
           <DialogHeader>
             <DialogTitle>Добавление текста</DialogTitle>
           </DialogHeader>
@@ -1303,77 +1341,82 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               onChange={(e) => setTextInput(e.target.value)}
               className="col-span-2"
             />
-            <div className="flex items-center justify-between">
-              <span>Шрифт:</span>
-              <Select value={fontFamily} onValueChange={setFontFamily}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Выберите шрифт" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AVAILABLE_FONTS.map((font) => (
-                    <SelectItem 
-                      key={font.name} 
-                      value={font.family}
-                      style={{ fontFamily: font.family }}
-                    >
-                      {font.name}
-                    </SelectItem>
-                  ))}
-                  {customFonts.map((font) => (
-                    <SelectItem 
-                      key={font.name} 
-                      value={font.family}
-                      style={{ fontFamily: font.family }}
-                    >
-                      {font.name} (Custom)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Размер:</span>
-              <div className="flex items-center space-x-2">
-                <Slider 
-                  value={[fontSize]} 
-                  onValueChange={(values) => setFontSize(values[0])} 
-                  max={72} 
-                  min={8} 
-                  step={1}
-                  className="w-40"
-                />
-                <span className="w-8 text-center">{fontSize}</span>
+            <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
+              <div className="flex items-center justify-between">
+                <span>Шрифт:</span>
+                <Select value={fontFamily} onValueChange={setFontFamily}>
+                  <SelectTrigger className={cn(isMobile ? "w-32" : "w-40")}>
+                    <SelectValue placeholder="Выберите шрифт" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AVAILABLE_FONTS.map((font) => (
+                      <SelectItem 
+                        key={font.name} 
+                        value={font.family}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.name}
+                      </SelectItem>
+                    ))}
+                    {customFonts.map((font) => (
+                      <SelectItem 
+                        key={font.name} 
+                        value={font.family}
+                        style={{ fontFamily: font.family }}
+                      >
+                        {font.name} (Custom)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span>Размер:</span>
+                <div className="flex items-center space-x-2">
+                  <Slider 
+                    value={[fontSize]} 
+                    onValueChange={(values) => setFontSize(values[0])} 
+                    max={72} 
+                    min={8} 
+                    step={1}
+                    className={cn(isMobile ? "w-24" : "w-40")}
+                  />
+                  <span className="w-8 text-center">{fontSize}</span>
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span>Стиль:</span>
+            
+            <div className="flex items-center justify-between flex-wrap">
+              <span className={cn(isMobile && "mb-2")}>Стиль:</span>
               <div className="flex space-x-2">
                 <Button 
                   variant={fontStyle === "normal" ? "default" : "outline"} 
                   size="sm"
                   onClick={() => setFontStyle("normal")}
-                  className="min-w-[60px]"
+                  className={cn(isMobile ? "px-2" : "min-w-[60px]")}
                 >
-                  Обычный
+                  {isMobile ? "О" : "Обычный"}
                 </Button>
                 <Button 
                   variant={fontStyle === "bold" ? "default" : "outline"} 
                   size="sm"
                   onClick={() => setFontStyle("bold")}
-                  className="min-w-[60px] font-bold"
+                  className={cn(isMobile ? "px-2 font-bold" : "min-w-[60px] font-bold")}
                 >
-                  Жирный
+                  {isMobile ? "Ж" : "Жирный"}
                 </Button>
                 <Button 
                   variant={fontStyle === "italic" ? "default" : "outline"} 
                   size="sm"
                   onClick={() => setFontStyle("italic")}
-                  className="min-w-[60px] italic"
+                  className={cn(isMobile ? "px-2 italic" : "min-w-[60px] italic")}
                 >
-                  Курсив
+                  {isMobile ? "К" : "Курсив"}
                 </Button>
               </div>
             </div>
+            
             <div className="flex flex-col gap-2">
               <span>Предпросмотр:</span>
               <div 
@@ -1390,11 +1433,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTextDialogOpen(false)}>
+          <DialogFooter className={cn(isMobile && "flex-col space-y-2")}>
+            <Button variant="outline" onClick={() => setTextDialogOpen(false)} className={cn(isMobile && "w-full")}>
               Отмена
             </Button>
-            <Button type="button" onClick={addText}>
+            <Button type="button" onClick={addText} className={cn(isMobile && "w-full")}>
               Добавить
             </Button>
           </DialogFooter>
@@ -1403,7 +1446,7 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
 
       {/* Polygon dialog */}
       <Dialog open={polygonSidesDialogOpen} onOpenChange={setPolygonSidesDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={cn("sm:max-w-md", isMobile && "w-[90%] max-w-[90%]")}>
           <DialogHeader>
             <DialogTitle>Многоугольник</DialogTitle>
           </DialogHeader>
@@ -1417,20 +1460,20 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
                   max={12} 
                   min={3} 
                   step={1}
-                  className="w-40"
+                  className={cn(isMobile ? "w-24" : "w-40")}
                 />
                 <span className="w-8 text-center">{polygonSides}</span>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPolygonSidesDialogOpen(false)}>
+          <DialogFooter className={cn(isMobile && "flex-col space-y-2")}>
+            <Button variant="outline" onClick={() => setPolygonSidesDialogOpen(false)} className={cn(isMobile && "w-full")}>
               Отмена
             </Button>
             <Button type="button" onClick={() => {
               setPolygonSidesDialogOpen(false);
               addShape('polygon');
-            }}>
+            }} className={cn(isMobile && "w-full")}>
               Добавить
             </Button>
           </DialogFooter>
