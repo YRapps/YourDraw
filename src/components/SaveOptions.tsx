@@ -1,23 +1,24 @@
 
 import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-export interface SaveOptions {
-  format: "png" | "jpeg" | "yrd";
-  background: "transparent" | "white";
-  filename: string;
-  saveToDevice: boolean;
-}
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Download, Save } from "lucide-react";
 
 interface SaveOptionsProps {
   isOpen: boolean;
@@ -25,16 +26,26 @@ interface SaveOptionsProps {
   onSave: (options: SaveOptions) => void;
 }
 
+export interface SaveOptions {
+  format: "png" | "jpeg" | "webp";
+  background: "transparent" | "white";
+  filename: string;
+  saveToDevice: boolean;
+}
+
 const SaveOptions: React.FC<SaveOptionsProps> = ({ isOpen, onClose, onSave }) => {
   const [options, setOptions] = useState<SaveOptions>({
     format: "png",
     background: "transparent",
-    filename: `drawing-${new Date().toISOString().slice(0, 10)}`,
-    saveToDevice: true,
+    filename: `drawing-${new Date().toLocaleDateString('ru-RU').replace(/\//g, '-')}`,
+    saveToDevice: false
   });
 
-  const handleSave = () => {
-    onSave(options);
+  const handleSave = (saveToDevice: boolean) => {
+    onSave({
+      ...options,
+      saveToDevice
+    });
     onClose();
   };
 
@@ -42,86 +53,74 @@ const SaveOptions: React.FC<SaveOptionsProps> = ({ isOpen, onClose, onSave }) =>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Сохранение рисунка</DialogTitle>
+          <DialogTitle>Настройки сохранения</DialogTitle>
         </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Формат файла</Label>
-            <RadioGroup
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="format">Формат</Label>
+            <Select 
               value={options.format}
-              onValueChange={(value) => setOptions({ ...options, format: value as "png" | "jpeg" | "yrd" })}
-              className="flex space-x-4"
+              onValueChange={(value: "png" | "jpeg" | "webp") => 
+                setOptions({...options, format: value})
+              }
+            >
+              <SelectTrigger id="format">
+                <SelectValue placeholder="Выберите формат" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="png">PNG</SelectItem>
+                <SelectItem value="jpeg">JPEG</SelectItem>
+                <SelectItem value="webp">WebP</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Фон</Label>
+            <RadioGroup 
+              value={options.background}
+              onValueChange={(value: "transparent" | "white") => 
+                setOptions({...options, background: value})
+              }
+              className="flex"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="png" id="format-png" />
-                <Label htmlFor="format-png">PNG</Label>
+                <RadioGroupItem value="transparent" id="transparent" />
+                <Label htmlFor="transparent" className="cursor-pointer">Прозрачный</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="jpeg" id="format-jpeg" />
-                <Label htmlFor="format-jpeg">JPEG</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yrd" id="format-yrd" />
-                <Label htmlFor="format-yrd">YRD (редактируемый)</Label>
+              <div className="flex items-center space-x-2 ml-4">
+                <RadioGroupItem value="white" id="white" />
+                <Label htmlFor="white" className="cursor-pointer">Белый</Label>
               </div>
             </RadioGroup>
           </div>
 
-          {options.format !== "yrd" && (
-            <div className="space-y-2">
-              <Label>Фон</Label>
-              <RadioGroup
-                value={options.background}
-                onValueChange={(value) => setOptions({ ...options, background: value as "transparent" | "white" })}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="transparent" id="bg-transparent" />
-                  <Label htmlFor="bg-transparent">Прозрачный</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="white" id="bg-white" />
-                  <Label htmlFor="bg-white">Белый</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Имя файла</Label>
-            <Input
+          <div className="grid gap-2">
+            <Label htmlFor="filename">Имя файла</Label>
+            <Input 
+              id="filename" 
               value={options.filename}
-              onChange={(e) => setOptions({ ...options, filename: e.target.value })}
-              placeholder="Введите имя файла"
+              onChange={(e) => setOptions({...options, filename: e.target.value})}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label>Куда сохранить</Label>
-            <RadioGroup
-              value={options.saveToDevice ? "device" : "gallery"}
-              onValueChange={(value) => setOptions({ ...options, saveToDevice: value === "device" })}
-              className="flex space-x-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="device" id="save-device" />
-                <Label htmlFor="save-device">Скачать на устройство</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="gallery" id="save-gallery" />
-                <Label htmlFor="save-gallery">В галерею рисунков</Label>
-              </div>
-            </RadioGroup>
-          </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Отмена
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => handleSave(true)}
+            className="flex-1"
+          >
+            <Download className="mr-2 h-4 w-4" /> 
+            Скачать на устройство
           </Button>
-          <Button onClick={handleSave}>
-            Сохранить
+          <Button 
+            type="submit" 
+            onClick={() => handleSave(false)}
+            className="flex-1"
+          >
+            <Save className="mr-2 h-4 w-4" /> 
+            Сохранить в браузере
           </Button>
         </DialogFooter>
       </DialogContent>

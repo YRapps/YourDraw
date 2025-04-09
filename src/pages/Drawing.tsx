@@ -31,21 +31,7 @@ const Drawing = () => {
       
       if (drawing) {
         setDrawingId(drawing.id);
-        // Check if the drawing data might be a YRD format (which is a JSON object containing canvasJSON)
-        try {
-          const parsedData = JSON.parse(drawing.data);
-          if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
-            // If it's YRD format, extract the canvasJSON part
-            console.log("Loading YRD format drawing");
-            setDrawingData(drawing.data); // Keep the original YRD format
-          } else {
-            // Regular canvas JSON data
-            setDrawingData(drawing.data);
-          }
-        } catch (e) {
-          // If parsing fails, it's regular JSON canvas data
-          setDrawingData(drawing.data);
-        }
+        setDrawingData(drawing.data);
         setIsLoading(false);
       } else {
         toast.error("Рисунок не найден", {
@@ -89,7 +75,7 @@ const Drawing = () => {
     
     console.log("Auto-saving drawing:", drawingId);
     
-    // Get existing drawing to preserve its name and creation date
+    // Get existing drawing to preserve its name
     const existingDrawing = getDrawingById(drawingId);
     const name = existingDrawing?.name || `Рисунок от ${new Date().toLocaleDateString('ru-RU')}`;
     

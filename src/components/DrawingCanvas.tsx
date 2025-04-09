@@ -89,7 +89,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
   const fontFileInputRef = useRef<HTMLInputElement>(null);
-  const yrdFileInputRef = useRef<HTMLInputElement>(null);
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const [activeTool, setActiveTool] = useState<Tool>("select");
   const [activeMenu, setActiveMenu] = useState<Menu>("tools");
@@ -170,38 +169,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     fabricCanvas.on('selection:cleared', handleSelectionCleared);
     
     if (initialData) {
-      console.log("Loading initial drawing data");
-      try {
-        // Try to detect if the data is in YRD format
-        const parsedData = JSON.parse(initialData);
-        if (parsedData.type === "yourDrawing" && parsedData.canvasJSON) {
-          // If it's YRD format, extract the canvasJSON part
-          console.log("Loading YRD format drawing");
-          fabricCanvas.loadFromJSON(parsedData.canvasJSON, () => {
-            fabricCanvas.renderAll();
-            setObjects(fabricCanvas.getObjects());
-            console.log("Canvas loaded from YRD format successfully");
-          });
-        } else {
-          // Regular canvas JSON data
-          fabricCanvas.loadFromJSON(initialData, () => {
-            fabricCanvas.renderAll();
-            setObjects(fabricCanvas.getObjects());
-            console.log("Canvas loaded from JSON successfully");
-          });
-        }
-      } catch (error) {
-        console.error("Error loading canvas data:", error);
-        // If parsing fails, try loading as regular JSON anyway
-        try {
-          fabricCanvas.loadFromJSON(initialData, () => {
-            fabricCanvas.renderAll();
-            setObjects(fabricCanvas.getObjects());
-          });
-        } catch (e) {
-          console.error("Failed to load canvas data even as regular JSON:", e);
-        }
-      }
+      fabricCanvas.loadFromJSON(initialData, () => {
+        fabricCanvas.renderAll();
+        setObjects(fabricCanvas.getObjects());
+      });
     } else {
       saveCanvasState();
     }
@@ -430,7 +401,10 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         canvas.setBackgroundImage(new fabric.Image(imgElement), () => {
           canvas.renderAll();
           saveCanvasState();
-          toast("Фоновое изображение успешно установлено");
+          toast({
+            title: "Фон изменен",
+            description: "Фоновое изображение успешно установлено",
+          });
         });
       };
     };
@@ -459,12 +433,18 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         activeObject.set('fill', fillColor);
         canvas.renderAll();
         saveCanvasState();
-        toast("Объект заполнен выбранным цветом");
+        toast({
+          title: "Заливка",
+          description: "Объект заполнен выбранным цветом",
+        });
       } else {
         canvas.backgroundColor = fillColor;
         canvas.renderAll();
         saveCanvasState();
-        toast("Фон заполнен выбранным цветом");
+        toast({
+          title: "Заливка",
+          description: "Фон заполнен выбранным цветом",
+        });
       }
       return;
     }
@@ -543,66 +523,29 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     canvas.renderAll();
     
-    if (options.format === "yrd") {
-      const yrdData = {
-        version: "1.0",
-        type: "yourDrawing",
-        canvasJSON: canvas.toJSON(),
-        metadata: {
-          createdAt: Date.now(),
-          drawingId: drawingId,
-          author: "user"
-        }
-      };
-      
-      const yrdContent = JSON.stringify(yrdData);
-      
-      if (options.saveToDevice) {
-        const blob = new Blob([yrdContent], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${options.filename}.yrd`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        toast("Ваш рисунок был скачан в формате .yrd");
-      } else if (onSave) {
-        const thumbnailDataURL = canvas.toDataURL({
-          format: 'png',
-          quality: 1,
-          multiplier: 0.5,
-        });
-        onSave(yrdContent, thumbnailDataURL);
-      }
-    } else {
-      const dataURL = canvas.toDataURL({
-        format: options.format,
-        quality: 1,
-        multiplier: 2,
-      });
-      
-      canvas.backgroundColor = originalBgColor;
-      canvas.renderAll();
-      
-      if (options.saveToDevice) {
-        const link = document.createElement('a');
-        link.href = dataURL;
-        link.download = `${options.filename}.${options.format}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast(`Ваш рисунок был скачан в формате .${options.format}`);
-      } else if (onSave) {
-        onSave(JSON.stringify(canvas.toJSON()), dataURL);
-      }
-    }
+    const dataURL = canvas.toDataURL({
+      format: options.format,
+      quality: 1,
+      multiplier: 2,
+    });
     
     canvas.backgroundColor = originalBgColor;
     canvas.renderAll();
+    
+    if (options.saveToDevice) {
+      const link = document.createElement('a');
+      link.href = dataURL;
+      link.download = `${options.filename}.${options.format}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast("Рисунок скачан", {
+        description: "Ваш рисунок был скачан на устройство",
+      });
+    } else if (onSave && drawingId) {
+      onSave(JSON.stringify(canvas.toJSON()), dataURL);
+    }
   };
 
   const saveAsPNG = () => {
@@ -687,42 +630,11 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
     
     setCustomFonts(prev => [...prev, { name: fontName, family: `${fontName}, sans-serif` }]);
     
-    toast(`Шрифт ${fontName} успешно добавлен и доступен для использования`);
+    toast({
+      title: "Шрифт загружен",
+      description: `Шрифт ${fontName} успешно добавлен и доступен для использования`,
+    });
     
-    e.target.value = '';
-  };
-
-  const handleImportYRD = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !canvas) return;
-    
-    const file = files[0];
-    if (!file.name.endsWith('.yrd')) {
-      toast("Выберите файл в формате .yrd");
-      e.target.value = '';
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const yrdData = JSON.parse(e.target?.result as string);
-        if (yrdData.type === "yourDrawing" && yrdData.canvasJSON) {
-          canvas.loadFromJSON(yrdData.canvasJSON, () => {
-            canvas.renderAll();
-            setObjects(canvas.getObjects());
-            toast("Рисунок .yrd успешно импортирован");
-            saveCanvasState();
-          });
-        } else {
-          toast("Некорректный формат .yrd файла");
-        }
-      } catch (error) {
-        console.error("Error importing .yrd file:", error);
-        toast("Ошибка при импорте файла");
-      }
-    };
-    reader.readAsText(file);
     e.target.value = '';
   };
 
@@ -776,15 +688,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
           >
             <Undo size={20} />
           </Button>
-          
-          <Button 
-            variant="outline"
-            className="shadow-md bg-white"
-            onClick={() => yrdFileInputRef.current?.click()}
-            aria-label="Импортировать .yrd"
-          >
-            <Upload size={20} />
-          </Button>
         </div>
         
         <Button 
@@ -824,14 +727,6 @@ const DrawingCanvas: React.FC<DrawingCanvasProps> = ({
         ref={fontFileInputRef}
         onChange={handleFontUpload}
         accept=".ttf,.otf,.woff,.woff2"
-        className="hidden"
-      />
-      
-      <input
-        type="file"
-        ref={yrdFileInputRef}
-        onChange={handleImportYRD}
-        accept=".yrd"
         className="hidden"
       />
 
